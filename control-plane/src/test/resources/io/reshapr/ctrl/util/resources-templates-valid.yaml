@@ -1,0 +1,16 @@
+apiVersion: reshapr.io/v1alpha1
+kind: Resources
+service:
+  name: Repository Service
+  version: '1.0.0'
+resourceTemplates:
+  'file:///project/src/{path}?mode=raw':
+    name: Project Source File
+    title: 📁 Project Files
+    description: Access files in the project directory
+    mimeType: application/octet-stream
+    icons:
+      - src: https://example.com/folder-icon.png
+        mimeType: image/png
+        sizes:
+          - "48x48"

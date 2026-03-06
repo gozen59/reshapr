@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package reshapr.exposition.v1;
+
+option java_package = "io.reshapr.discovery.exposition.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ExpositionDiscoveryProto";
+
+// Exposition represents a service exposition in the Reshapr control plane
+message Exposition {
+  string id = 1; // Unique identifier for the exposition
+  Service service = 2;
+  Configuration configuration = 3;
+}
+
+// Service represents a service that can be exposed
+message Service {
+  string id = 1;
+  string organizationId = 2; // ID of the organization that owns the service
+  string name = 3;
+  string version = 4;
+  string type = 5; // e.g., REST, GraphQL, gRPC, etc.
+  repeated Operation operations = 6;
+}
+
+// List of operations exposed by the service
+message Operation {
+  string name = 1;
+  optional string method = 2;
+  optional string action = 3;
+  optional string inputName = 4;
+  optional string outputName = 5;
+}
+
+// Configuration represents the configuration for a service exposition
+message Configuration {
+  string id = 1;
+  string name = 2;
+  string backendEndpoint = 3; // URL of the backend service
+  repeated string excludedOperations = 4; // Operations to exclude from exposition
+  repeated string includedOperations = 5; // Operations to include in exposition
+  optional string apiKey = 6;
+  optional OAuth2Configuration oauth2Configuration = 7;
+  optional Secret backendSecret = 8;
+}
+
+message OAuth2Configuration {
+  repeated string authorizationServers = 1;
+  string jwksUri = 2;
+  repeated string scopes = 3;
+}
+
+// Secret represents sensitive information required for accessing the backend service
+message Secret {
+  string name = 1;
+  optional string username = 2;
+  optional string password = 3;
+  optional string token = 4;
+  optional string tokenHeader = 5;
+  optional string certPem = 6;
+  bool useElicitation = 7;
+  optional OAuth2ClientConfiguration oauth2ClientConfiguration = 8;
+}
+
+message OAuth2ClientConfiguration {
+  string clientId = 1;
+  string authorizationEndpoint = 2;
+  string tokenEndpoint = 3;
+}
+
+// ExpositionDiscoveryRequest is used to request exposition discovery information
+message ExpositionDiscoveryRequest {
+  string gatewayId = 1;
+  map<string, string> labels = 2;
+  repeated string fqdns = 3;
+}
+
+// ExpositionDiscoveryResponse is used to return the discovered expositions
+message ExpositionDiscoveryResponse {
+  repeated Exposition expositions = 1;
+}
+
+// ChangeType represents the type of change that occurred to an exposition
+enum ChangeType {
+  CREATED = 0;  // Exposition was created
+  UPDATED = 1;  // Exposition service or configuration was updated
+  DELETED = 2;  // Exposition was deleted
+}
+
+// ExpositionChangeEvent is used to notify about changes in expositions
+message ExpositionChangeEvent {
+  string expositionId = 1; // ID of the exposition that changed
+  ChangeType changeType = 2;
+  Exposition exposition = 3; // The exposition that changed, if applicable
+}
+
+// ExpositionFetchRequest is used to request a specific exposition by its ID
+message ExpositionFetchRequest {
+  string expositionId = 1; // ID of the exposition to fetch
+}
+
+// ArtifactsRequest is used to request artifacts for a specific exposed service
+message ArtifactsRequest {
+  string serviceId = 1; // ID of the Service to fetch artifacts for
+}
+
+// ArtifactsResponse is used to return the artifacts for a service
+message ArtifactsResponse {
+  string service_id = 1; // ID of the Service for which artifacts are returned
+  repeated Artifact artifacts = 2; // List of artifacts associated with the service
+}
+
+// ArtifactType represents the type of artifact (e.g., OpenAPI, GraphQL, gRPC etc.)
+enum ArtifactType {
+  OPEN_API_SPEC = 0; // OpenAPI specification
+  GRAPHQL_SCHEMA = 1; // GraphQL schema
+  PROTOBUF_SCHEMA = 2; // gRPC service definition
+  PROTOBUF_DESCRIPTOR = 3; // gRPC service definition
+  JSON_SCHEMA = 4; // JSON schema
+  JSON_FRAGMENT = 5; // JSON fragment
+  RESHAPR_PROMPTS = 6; // Reshapr prompts
+  RESHAPR_CUSTOM_TOOLS = 7; // Reshapr custom tools
+  RESHAPR_RESOURCES = 8; // Reshapr resources
+}
+
+// Artifact represents an artifact associated with a service.
+message Artifact {
+  string id = 1; // Unique identifier for the artifact
+  string name = 2; // Name of the artifact
+  ArtifactType type = 3; // Type of the artifact (e.g., OpenAPI, GraphQL, gRPC etc.)
+  string path = 4; // Path to the artifact in the storage
+  bool mainArtifact = 5; // Is it a main artifact?
+  string content = 6; // Content of the artifact in string format
+}
+
+
+service ExpositionDiscoveryService {
+
+  rpc DiscoverExpositions(ExpositionDiscoveryRequest)
+      returns (ExpositionDiscoveryResponse) {
+  }
+
+  rpc StreamExpositionChanges(ExpositionDiscoveryRequest)
+      returns (stream ExpositionChangeEvent) {
+  }
+
+  rpc FetchExposition(ExpositionFetchRequest)
+      returns (Exposition) {
+  }
+
+  rpc FetchArtifacts(ArtifactsRequest)
+      returns (ArtifactsResponse) {
+  }
+}

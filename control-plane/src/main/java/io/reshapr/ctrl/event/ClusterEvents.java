@@ -1,0 +1,49 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.ctrl.event;
+
+import io.reshapr.ctrl.model.Exposition;
+import io.reshapr.ctrl.model.GatewayGroup;
+
+/**
+ * Defines events related to cluster-wide changes, such as exposition-gateway group associations.
+ * These events are intended to be published and consumed across the cluster to keep all nodes in sync
+ * regarding the state of expositions and their associations with gateway groups.
+ * @author laurent
+ */
+public class ClusterEvents {
+
+   public sealed interface ExpositionGatewayGroupEvent permits ExpositionGatewayGroupCreationEvent,
+         ExpositionGatewayGroupUpdateEvent, ExpositionGatewayGroupDeletionEvent {
+      Exposition exposition();
+      GatewayGroup gatewayGroup();
+   }
+
+   public record ExpositionGatewayGroupCreationEvent(
+         Exposition exposition,
+         GatewayGroup gatewayGroup
+   ) implements ExpositionGatewayGroupEvent {}
+
+   public record ExpositionGatewayGroupUpdateEvent(
+         Exposition exposition,
+         GatewayGroup gatewayGroup
+   ) implements ExpositionGatewayGroupEvent {}
+
+   public record ExpositionGatewayGroupDeletionEvent(
+         Exposition exposition,
+         GatewayGroup gatewayGroup
+   ) implements ExpositionGatewayGroupEvent {}
+}

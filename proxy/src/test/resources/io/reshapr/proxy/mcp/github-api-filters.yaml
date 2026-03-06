@@ -1,0 +1,19 @@
+apiVersion: reshapr.io/v1alpha1
+kind: Filters
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+filters:
+  get_user_with_latest_followers:
+    add:
+      - path: /country
+        value: "France"
+    remove:
+      - /age
+      - /bioHTML
+      - /companyHTML
+      - /copilotEndpoints
+      - /monthlyEstimatedSponsorsIncomeInCents
+    replace:
+      - path: /city
+        value: Parigne Le Polin

@@ -1,0 +1,34 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.ctrl.model;
+
+import io.hypersistence.utils.hibernate.id.Tsid;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
+
+@MappedSuperclass
+public abstract class BaseEntity extends PanacheEntityBase {
+
+   @Id
+   @Tsid
+   public String id;
+
+   public String toString() {
+      String var10000 = this.getClass().getSimpleName();
+      return var10000 + "<" + this.id + ">";
+   }
+}

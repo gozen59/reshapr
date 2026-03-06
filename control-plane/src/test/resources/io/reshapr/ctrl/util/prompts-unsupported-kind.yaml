@@ -1,0 +1,10 @@
+apiVersion: reshapr.io/v1alpha1
+kind: XPrompts
+service:
+  name: Pastry API
+  version: 2.0.0
+prompts:
+  list_pastries:
+    title: List the pastries
+    description: Browse the catalog to get all the pastries
+    result: Get all the pastries from the catalog

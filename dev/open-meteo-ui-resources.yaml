@@ -1,0 +1,36 @@
+apiVersion: reshapr.io/v1alpha1
+kind: Resources
+service:
+  name: Open-Meteo APIs
+  version: '1.0'
+resources:
+  'ui://info/mcp-app.html':
+    name: Basic info page
+    description: Display basic info about Open-Meteo get_v1_forecast tool
+    mimeType: text/html;profile=mcp-app
+    remoteContent: http://localhost:3030/mcp-app.html
+    _meta:
+      domain: open-meteo.com
+      prefersBoarder: true
+      permissions:
+        camera: {}
+        microphone: {}
+        geolocation: {}
+        clipboardWrite: {}
+      csp:
+        connectDomains:
+          - open-meteo.com
+        resourceDomains:
+          - reshapr.io
+        frameDomains:
+          - open-meteo.com
+        baseUriDomains:
+          - open-meteo.com
+    tools:
+      - get_v1_forecast:
+          visibility:
+            - app
+            - model
+
+      
+      

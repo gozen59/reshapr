@@ -1,0 +1,72 @@
+name: build-verify-package
+on:
+  push:
+    paths-ignore:
+      #- '.github/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - '.github/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+permissions: read-all
+
+jobs:
+  build-install:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK 25 for x64
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          architecture: x64
+          cache: maven
+
+      - name: Build Java components
+        run: mvn -B -q clean install
+
+      - id: set-environment
+        name: Set environment for branch
+        run: |
+          set -x
+          if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
+            echo "IMAGE_TAG=nightly" >> "$GITHUB_ENV"
+            echo "IMAGE_TAG=nightly" >> "$GITHUB_OUTPUT"
+            echo "PACKAGE_IMAGE=true" >> "$GITHUB_ENV"
+            echo "PACKAGE_IMAGE=true" >> "$GITHUB_OUTPUT"
+          elif [[ $GITHUB_REF == "refs/tags/$GITHUB_REF_NAME" ]]; then
+            echo "IMAGE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "IMAGE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "PACKAGE_IMAGE=true" >> "$GITHUB_ENV"
+            echo "PACKAGE_IMAGE=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "PACKAGE_IMAGE=false" >> "$GITHUB_ENV"
+            echo "PACKAGE_IMAGE=false" >> "$GITHUB_OUTPUT"
+          fi
+
+    outputs:
+      image-tag: ${{ steps.set-environment.outputs.IMAGE_TAG }}
+      package-image: ${{ steps.set-environment.outputs.PACKAGE_IMAGE }}
+
+  container-images-build:
+    needs:
+      - build-install
+    if: github.repository_owner == 'reshaprio' && needs.build-install.outputs.package-image == 'true' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token
+    uses: ./.github/workflows/build-containers.yml
+    with:
+      image-tag: ${{ needs.build-install.outputs.image-tag }}
+    secrets: inherit
+
