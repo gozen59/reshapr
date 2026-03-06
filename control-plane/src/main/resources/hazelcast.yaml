@@ -1,0 +1,25 @@
+hazelcast:
+  network:
+    port:
+      port: 5556
+    join:
+      multicast:
+        enabled: false
+      kubernetes:
+        enabled: false
+        # We're looking for services endpoints in this namespace with this name
+        namespace: reshapr-system
+        service-name: reshapr-ctrl-plane
+
+  # Optional: cluster name to avoid collisions with other hazelcast clusters in the same network
+  cluster-name: reshapr-ctrl-plane-cluster
+
+  executor-service:
+    default:
+      # The number of executor threads per member for the executor service.
+      pool-size: 6
+      # Queue capacity. 0 means Integer.MAX_VALUE.
+      queue-capacity: 0
+      # Specifies whether statistical information of this executor service
+      # is gathered and stored in this local member.
+      statistics-enabled: true

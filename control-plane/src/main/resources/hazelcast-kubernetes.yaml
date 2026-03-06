@@ -1,0 +1,17 @@
+hazelcast:
+  network:
+    join:
+      multicast:
+        enabled: false
+      kubernetes:
+        enabled: true
+        # We're looking for pods in this namespace with this label
+        namespace: ${KUBERNETES_NAMESPACE:default}
+        service-name: ${RESHAPR_SVC_LABEL:reshapr-ctrl-plane}
+        #service-label-name: app
+        #service-label-value: reshapr-ctrl-plane
+        #pod-label-name: app
+        #pod-label-value: reshapr-ctrl-plane
+
+  # Optional: cluster name to avoid collisions with other hazelcast clusters in the same network
+  cluster-name: reshapr-ctrl-plane-cluster

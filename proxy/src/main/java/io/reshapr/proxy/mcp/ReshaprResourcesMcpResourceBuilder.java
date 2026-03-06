@@ -1,0 +1,300 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.proxy.mcp;
+
+import io.reshapr.proxy.proxy.BackendResponse;
+import io.reshapr.proxy.proxy.ContentUtil;
+import io.reshapr.proxy.proxy.ProxyService;
+import io.reshapr.proxy.registry.ArtifactEntry;
+import io.reshapr.proxy.registry.ArtifactEntryType;
+import io.reshapr.proxy.registry.ConfigurationEntry;
+import io.reshapr.proxy.registry.ServiceEntry;
+
+import io.github.microcks.util.ObjectMapperFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.net.HttpHeaders;
+import com.google.crypto.tink.subtle.Base64;
+import jakarta.annotation.Nullable;
+import org.jboss.logging.Logger;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * An implementation of McpResourceBuilder that builds resources from Reshapr Resources artifacts.
+ * @author laurent
+ */
+public class ReshaprResourcesMcpResourceBuilder implements McpResourceBuilder {
+
+   /** Get a JBoss logging logger. */
+   private final Logger logger = Logger.getLogger(getClass());
+
+   private static final String CACHE_KEYS_PREFIX = "mrmcprb-";
+
+   private static final ObjectMapper YAML_MAPPER = ObjectMapperFactory.getYamlObjectMapper();
+
+   private final ServiceEntry service;
+   private final List<ArtifactEntry> attachedArtifacts;
+   private final WorkCache workCache;
+   private final ProxyService proxyService;
+
+   public ReshaprResourcesMcpResourceBuilder(ServiceEntry service, List<ArtifactEntry> attachedArtifacts,
+                                             WorkCache workCache, ObjectMapper mapper, ProxyService proxyService) {
+      this.service = service;
+      this.attachedArtifacts = attachedArtifacts;
+      this.workCache = workCache;
+      this.proxyService = proxyService;
+   }
+
+   @Override
+   public List<McpSchema.Resource> listResources() {
+      // First, check cache to see if we have already loaded resources.
+      JsonNode resourcesNode = getResourcesNode();
+      if (resourcesNode == null) {
+         logger.debugf("No Resources artifact found for service '%s'", service.id());
+         return Collections.emptyList();
+      }
+
+      // Convert to list of Resource objects.
+      List<McpSchema.Resource> resources = new ArrayList<>();
+      Iterator<String> urisIterator = resourcesNode.fieldNames();
+      while (urisIterator.hasNext()) {
+         String uri = urisIterator.next();
+
+         JsonNode resourceNode = resourcesNode.get(uri);
+         Long size = resourceNode.has("size") ? resourceNode.get("size").asLong() : null;
+         var annotations = resourceNode.has("annotations") ?
+               YAML_MAPPER.convertValue(resourceNode.get("annotations"), McpSchema.Annotations.class) : null;
+         var meta = resourceNode.has("_meta") ?
+               YAML_MAPPER.convertValue(resourceNode.get("_meta"), new TypeReference<Map<String, Object>>() {}) : null;
+         resources.add(new McpSchema.Resource(uri,
+               resourceNode.path("name").asText(null),
+               resourceNode.path("title").asText(null),
+               resourceNode.path("description").asText(null),
+               resourceNode.path("mimeType").asText(null),
+               size, annotations, meta));
+      }
+      return resources;
+   }
+
+   @Override
+   public List<McpSchema.ResourceTemplate> listResourceTemplates() {
+      // First, check cache to see if we have already loaded templates.
+      JsonNode templatesNode = getResourceTemplatesNode();
+      if (templatesNode == null) {
+         logger.debugf("No Resources artifact found for service '%s'", service.id());
+         return Collections.emptyList();
+      }
+
+      // Convert to list of ResourceTemplate objects.
+      List<McpSchema.ResourceTemplate> templates = new ArrayList<>();
+      Iterator<String> uriTemplatesIterator = templatesNode.fieldNames();
+      while (uriTemplatesIterator.hasNext()) {
+         String uriTemplate = uriTemplatesIterator.next();
+
+         JsonNode templateNode = templatesNode.get(uriTemplate);
+         var annotations = templatesNode.has("annotations") ?
+               YAML_MAPPER.convertValue(templatesNode.get("annotations"), McpSchema.Annotations.class) : null;
+         templates.add(new McpSchema.ResourceTemplate(uriTemplate,
+               templateNode.path("name").asText(null),
+               templateNode.path("title").asText(null),
+               templateNode.path("description").asText(null),
+               templateNode.path("mimeType").asText(null),
+               annotations));
+      }
+      return templates;
+   }
+
+   @Override
+   public List<McpSchema.ResourceContents> readResource(McpSchema.ReadResourceRequest request, ConfigurationEntry configuration) {
+      JsonNode resourceNode = null;
+
+      // First, check cache to see if we have already loaded resources.
+      JsonNode resourcesNode = getResourcesNode();
+      if (resourcesNode != null) {
+         // Check direct resource first.
+         resourceNode = resourcesNode.get(request.uri());
+      }
+
+      if (resourceNode == null) {
+         // No direct resource found, look for templates.
+         logger.debugf("No direct resource '%s' found for service '%s', looking templates", request.uri(), service.id());
+
+         JsonNode templatesNode = getResourceTemplatesNode();
+         if (templatesNode == null) {
+            return List.of(
+                  new McpSchema.TextResourceContents(request.uri(), "text/plain", "No Resources artifact found."));
+         }
+
+         // Find for resource as an instantiation of a template.
+         Iterator<String> uriTemplatesIterator = templatesNode.fieldNames();
+         while (uriTemplatesIterator.hasNext()) {
+            String uriTemplate = uriTemplatesIterator.next();
+            String uriPattern = uriTemplate.replace("/", "\\/")   // Escape slashes.
+                  .replace("?", "\\?")                            // Escape query parameters marker.
+                  .replaceAll("\\{(.*)\\}", "(.*)");              // Prepare groups for extraction.
+
+            if (request.uri().matches(uriPattern)) {
+               resourceNode = templatesNode.get(uriTemplate);
+               break;
+            }
+         }
+      }
+
+      // Find the requested resource.
+      if (resourceNode == null) {
+         logger.debugf("No resource with URI '%s' not found for service '%s'", request.uri(), service.id());
+         return List.of(
+               new McpSchema.TextResourceContents(request.uri(), "text/plain",
+                     "No Resource with uri '" + request.uri() + "' found."));
+      }
+
+      // Build the resource read result contents.
+      List<McpSchema.ResourceContents> results = new ArrayList<>();
+
+      // It may be directly specified in the artifact as text or blob.
+      if (resourceNode.has("text")) {
+         results.add(new McpSchema.TextResourceContents(request.uri(),
+               resourceNode.path("mimeType").asText("text/plain"),
+               resourceNode.get("text").asText()));
+      } else if (resourceNode.has("blob")) {
+         results.add(new McpSchema.BlobResourceContents(request.uri(),
+               resourceNode.path("mimeType").asText("application/octet-stream"),
+               resourceNode.get("blob").asText()));
+      } else {
+         // We need to fetch the resource content from a backend URI.
+         if (request.uri().startsWith("file:///")) {
+            String backendUrl = configuration.backendEndpoint() + request.uri().substring("file://".length());
+
+            BackendResponse fetchResponse = proxyService.callBackend(configuration, URI.create(backendUrl),
+                  "GET", Collections.emptyMap(), null);
+
+            // Check it's text or blob based on mime type.
+            String contentType = fetchResponse.headers().getOrDefault(HttpHeaders.CONTENT_TYPE, List.of()).stream().findFirst().orElse(null);
+            if (contentType == null) {
+               contentType = resourceNode.path("mimeType").asText("application/octet-stream");
+            }
+            if (contentType.startsWith("text/") || contentType.contains("json") || contentType.contains("yaml") || contentType.contains("xml") ) {
+               String fetchedContent = null;
+               try {
+                  fetchedContent = ContentUtil.extractResponseContent(fetchResponse);
+               } catch (Exception e) {
+                  logger.errorf(e, "Cannot extract text content for resource '%s' from backend", request.uri());
+                  results.add(new McpSchema.TextResourceContents(request.uri(), "text/plain",
+                        "Error extracting resource content: " + e.getMessage()));
+               }
+               results.add(new McpSchema.TextResourceContents(request.uri(), contentType, fetchedContent));
+            } else {
+               results.add(new McpSchema.BlobResourceContents(request.uri(), contentType, Base64.encode(fetchResponse.content())));
+            }
+         } else if (request.uri().startsWith("ui://") && resourceNode.has("remoteContent")) {
+            // Special handling for ui:// resources - they are supposed to be served from another server found in the remoteResource property.
+            String remoteResourceUrl = resourceNode.path("remoteContent").asText(null);
+            if (remoteResourceUrl == null) {
+               logger.debugf("No remoteResource property found for ui:// resource '%s' for service '%s'", request.uri(), service.id());
+               results.add(new McpSchema.TextResourceContents(request.uri(), "text/plain",
+                     "No remoteResource property found for ui:// resource '" + request.uri() + "'."));
+            } else {
+               // Fetch from remoteResource URL.
+               BackendResponse fetchResponse = proxyService.callBackend(configuration, URI.create(remoteResourceUrl),
+                     "GET", Collections.emptyMap(), null);
+
+               results.add(new McpSchema.TextResourceContents(request.uri(), "text/html;profile=mcp-app",
+                     new String(fetchResponse.content(), StandardCharsets.UTF_8)));
+            }
+         }
+      }
+
+      return results;
+   }
+
+   private @Nullable JsonNode getResourcesNode() {
+      String key = CACHE_KEYS_PREFIX + service.hashCode();
+      if (workCache.get(key) instanceof JsonNode resourcesNode) {
+         logger.tracef("Got a cached value of Resources JsonNode for service '%s'", service.id());
+         return resourcesNode;
+      }
+
+      // Avoid errors if no attached artifacts.
+      if (attachedArtifacts == null || attachedArtifacts.isEmpty()) {
+         return null;
+      }
+
+      // Check the existence of a Reshapr Resources artifact.
+      Optional<ArtifactEntry> promptsArtifact = attachedArtifacts.stream()
+            .filter(artifactEntry -> ArtifactEntryType.RESHAPR_RESOURCES.equals(artifactEntry.type()))
+            .findFirst();
+      if (promptsArtifact.isEmpty()) {
+         return null;
+      }
+
+      // Compute new value to cache.
+      logger.debugf("Need to build Resources for service '%s'", service.id());
+      try {
+         JsonNode artifactNode = YAML_MAPPER.readTree(promptsArtifact.get().content());
+         JsonNode resourcesNode = artifactNode.get("resources");
+
+         workCache.set(key, resourcesNode);
+         return resourcesNode;
+      } catch (Exception e) {
+         logger.errorf(e, "Cannot read Reshapr Resources artifact for service '%s'", service.id());
+         return null;
+      }
+   }
+
+   private @Nullable JsonNode getResourceTemplatesNode() {
+      String key = CACHE_KEYS_PREFIX + service.hashCode() + "-templates";
+      if (workCache.get(key) instanceof JsonNode templatesNode) {
+         logger.tracef("Got a cached value of ResourceTemplates JsonNode for service '%s'", service.id());
+         return templatesNode;
+      }
+
+      // Avoid errors if no attached artifacts.
+      if (attachedArtifacts == null || attachedArtifacts.isEmpty()) {
+         return null;
+      }
+
+      // Check the existence of a Reshapr Resources artifact.
+      Optional<ArtifactEntry> promptsArtifact = attachedArtifacts.stream()
+            .filter(artifactEntry -> ArtifactEntryType.RESHAPR_RESOURCES.equals(artifactEntry.type()))
+            .findFirst();
+      if (promptsArtifact.isEmpty()) {
+         return null;
+      }
+
+      // Compute new value to cache.
+      logger.debugf("Need to build ResourceTemplates for service '%s'", service.id());
+      try {
+         JsonNode artifactNode = YAML_MAPPER.readTree(promptsArtifact.get().content());
+         JsonNode templatesNode = artifactNode.get("resourceTemplates");
+
+         workCache.set(key, templatesNode);
+         return templatesNode;
+      } catch (Exception e) {
+         logger.errorf(e, "Cannot read Reshapr Resources artifact for service '%s'", service.id());
+         return null;
+      }
+   }
+}

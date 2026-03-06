@@ -1,0 +1,5 @@
+apiVersion: reshapr.io/v1alpha1
+kind: Resources
+service:
+  name: Repository Service
+  version: '1.0.0'

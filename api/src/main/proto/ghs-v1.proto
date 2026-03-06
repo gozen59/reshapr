@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package reshapr.health.v1;
+
+option java_package = "io.reshapr.health.gateway.v1";
+option java_multiple_files = true;
+option java_outer_classname = "GatewayHealthProto";
+
+// GatewayRequest is used to send a request to the gateway health service
+message GatewayRequest {
+  string gatewayId = 1;
+}
+
+// GatewayHealthResponse is used to acknowledge the health status of the gateway
+message GatewayHealthResponse {
+  bool acknowledged = 1;
+}
+
+service GatewayHealthService {
+
+  // AdvertHealthy is used to report that the gateway is healthy
+  rpc AdvertHealthy(GatewayRequest) returns (GatewayHealthResponse);
+
+  // AdvertUnhealthy is used to report that the gateway is shutting down.
+  rpc AdvertShutdown(GatewayRequest) returns (GatewayHealthResponse);
+}

@@ -1,0 +1,20 @@
+apiVersion: reshapr.io/v1alpha1
+kind: Prompts
+service:
+  name: Pastry API
+  version: 2.0.0
+prompts:
+  list_pastries:
+    title: List the pastries
+    description: Browse the catalog to get all the pastries
+    result: Get all the pastries from the catalog
+  get_pastry:
+    title: Get details of a pastry
+    description: Get details for a specific pastry from the catalog
+    arguments:
+      - name: name
+        description: The name of the pastry to get
+        required: true
+    result: |-
+      Get the detailed information on the pastry named '${name}'.
+      The MCP tool to call is 'get_/pastry/{name}', using ${name} as the tool argument called 'name'.

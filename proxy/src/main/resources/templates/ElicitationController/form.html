@@ -1,0 +1,28 @@
+{#include base.html}
+{#title}reShapr Elicitation{/title}
+
+<h3>Organisation '{elicitationInfo.organizationId}'</h3>
+<h4>We need a token to access {elicitationInfo.backendEndpoint}...</h4>
+
+<div class="row">
+  <div class="col-6 flex-column">
+    <form class="mt-4" method="post" action="/elicitation/complete">
+      <input type="hidden" name="elicitationId" value="{elicitationInfo.id}"/>
+      <div class="mb-3">
+        <label for="token" class="form-label">{elicitationInfo.secretEntry.tokenHeader}</label>
+        <input type="password" class="form-control" id="token" name="token" aria-describedby="tokenHelp">
+        <div id="tokenHelp" class="form-text">The token needed to access {elicitationInfo.backendEndpoint}</div>
+      </div>
+      <div class="mb-0 d-flex justify-content-end form-check">
+        <input type="checkbox" class="form-check-input me-2" id="exampleCheck1">
+        <label class="form-check-label" for="exampleCheck1">Remember me</label>
+      </div>
+      <div class="mb-3 d-flex justify-content-end form-check">
+        <div class="form-text">We'll remember this token for 10 days</div>
+      </div>
+      <div class="mt-4 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,288 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.proxy;
+
+import io.reshapr.config.ReshaprArtifactSchemas;
+import io.reshapr.discovery.exposition.v1.ArtifactsRequest;
+import io.reshapr.discovery.exposition.v1.ArtifactsResponse;
+import io.reshapr.discovery.exposition.v1.ChangeType;
+import io.reshapr.discovery.exposition.v1.Exposition;
+import io.reshapr.discovery.exposition.v1.ExpositionChangeEvent;
+import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryRequest;
+import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryResponse;
+import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryServiceGrpc;
+import io.reshapr.discovery.exposition.v1.MutinyExpositionDiscoveryServiceGrpc;
+import io.reshapr.proxy.registry.ArtifactEntry;
+import io.reshapr.proxy.registry.ArtifactEntryType;
+import io.reshapr.proxy.registry.ConfigurationEntry;
+import io.reshapr.proxy.registry.GatewayRegistry;
+import io.reshapr.proxy.registry.Mappers;
+import io.reshapr.proxy.registry.ResourceEntry;
+import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.registry.ToolEntry;
+import io.reshapr.proxy.security.GrpcAuthClientInterceptor;
+
+import io.github.microcks.util.ObjectMapperFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.grpc.GrpcClient;
+import io.quarkus.grpc.RegisterClientInterceptor;
+import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
+import io.quarkus.runtime.util.StringUtil;
+import io.smallrye.mutiny.subscription.Cancellable;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.stream.StreamSupport;
+
+/**
+ * Main application class for the reShapr Gateway.
+ * It handles the discovery of expositions from the control plane and manages the local registry of services and artifacts.
+ * @author laurent
+ */
+@ApplicationScoped
+public class ReshaprGatewayApp {
+
+   /** Get a JBoss logging logger. */
+   private final Logger logger = Logger.getLogger(getClass());
+
+   private static final ObjectMapper YAML_MAPPER = ObjectMapperFactory.getYamlObjectMapper();
+
+   private final Executor propagationExecutor = Executors.newSingleThreadExecutor();
+
+   private final ExpositionDiscoveryServiceGrpc.ExpositionDiscoveryServiceBlockingStub discoveryService;
+   private final MutinyExpositionDiscoveryServiceGrpc.MutinyExpositionDiscoveryServiceStub asyncDiscoveryService;
+   private final GatewayRegistry gatewayRegistry;
+   private final Mappers registryMappers;
+
+   @ConfigProperty(name = "reshapr.gateway.id")
+   String gatewayId;
+
+   @ConfigProperty(name = "reshapr.gateway.labels", defaultValue = "{}")
+   Map<String, String> labels;
+
+   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "[localhost:7777]")
+   List<String> fqdns;
+
+   Cancellable expositionChangesSubscription;
+
+
+   /**
+    *
+    * @param discoveryService
+    * @param gatewayRegistry
+    * @param registryMappers
+    */
+   public ReshaprGatewayApp(@RegisterClientInterceptor(GrpcAuthClientInterceptor.class) @GrpcClient("exposition-discovery") ExpositionDiscoveryServiceGrpc.ExpositionDiscoveryServiceBlockingStub discoveryService,
+                            @RegisterClientInterceptor(GrpcAuthClientInterceptor.class) @GrpcClient("exposition-discovery") MutinyExpositionDiscoveryServiceGrpc.MutinyExpositionDiscoveryServiceStub asyncDiscoveryService,
+                            GatewayRegistry gatewayRegistry, Mappers registryMappers) {
+      this.discoveryService = discoveryService;
+      this.asyncDiscoveryService = asyncDiscoveryService;
+      this.gatewayRegistry = gatewayRegistry;
+      this.registryMappers = registryMappers;
+      logger.info("reShapr Gateway Application is starting...");
+   }
+
+   /** Application startup method. */
+   void onStart(@Observes StartupEvent ev) {
+      logger.infof("reShapr Gateway Application ID: %s", gatewayId);
+      logger.infof("reShapr Gateway Application labels: %s", labels);
+
+      try {
+         // Initial discovery and fetching of expositions.
+         ExpositionDiscoveryResponse discoveryResponse = registerAndDiscoverExpositions();
+
+         // Now we can start reacting to streamed exposition changes.
+         ExpositionDiscoveryRequest discoveryRequest = buildDiscoveryRequest();
+         expositionChangesSubscription = asyncDiscoveryService.streamExpositionChanges(discoveryRequest)
+               .emitOn(propagationExecutor)   // Handle changes on a dedicated thread where blocking client can be used.
+               .onFailure().retry().withBackOff(Duration.ofMillis(100), Duration.ofSeconds(5)).indefinitely()
+               .onSubscription().invoke(() -> logger.info("Subscribed to exposition changes stream."))
+               .onTermination().invoke(() -> logger.warn("Exposition changes stream has been terminated."))
+               .subscribe().with(changeEvent -> {
+                  logger.debugf("Received exposition change: %s", changeEvent);
+                  propagateExpositionChangeEvent(changeEvent);
+               }, failure -> logger.errorf("Failed to stream exposition changes: %s", failure.getMessage()));
+
+         logger.infof("Startup completed with %d expositions registered. Now listening for changes.", discoveryResponse.getExpositionsCount());
+      } catch (Throwable t) {
+         logger.error("Failed to fetch expositions during startup", t);
+      }
+   }
+
+   /** Application shutdown method. */
+   void onShutdown(@Observes ShutdownEvent ev) {
+      logger.info("reShapr Gateway Application is shutting down...");
+      logger.info("reShapr Gateway Application is shutting down...");
+      if (expositionChangesSubscription != null) {
+         expositionChangesSubscription.cancel();
+         logger.info("Cancelled exposition changes subscription.");
+      }
+   }
+
+   /** Build the exposition discovery request. */
+   public ExpositionDiscoveryRequest buildDiscoveryRequest() {
+      return ExpositionDiscoveryRequest.newBuilder()
+            .setGatewayId(gatewayId)
+            .putAllLabels(labels)
+            .addAllFqdns(fqdns)
+            .build();
+   }
+
+   /** */
+   public ExpositionDiscoveryResponse registerAndDiscoverExpositions() {
+      ExpositionDiscoveryRequest discoveryRequest = buildDiscoveryRequest();
+
+      ExpositionDiscoveryResponse discoveryResponse = discoveryService.discoverExpositions(discoveryRequest);
+      logger.infof("Fetched %d expositions during registration", discoveryResponse.getExpositionsCount());
+      discoveryResponse.getExpositionsList().forEach(this::fetchExposition);
+      return discoveryResponse;
+   }
+
+   /** Handle the exposition change here, e.g., update the registry or notify other components. */
+   void propagateExpositionChangeEvent(ExpositionChangeEvent changeEvent) {
+
+      if (changeEvent.getChangeType() == ChangeType.CREATED) {
+         // Fetch service details and register it.
+         logger.infof("Start exposing Service '%s:%s' with ID '%s'",
+               changeEvent.getExposition().getService().getName(),
+               changeEvent.getExposition().getService().getVersion(),
+               changeEvent.getExposition().getService().getId());
+         fetchExposition(changeEvent.getExposition());
+      } else if (changeEvent.getChangeType() == ChangeType.DELETED) {
+         // Remove the service from the registry.
+         logger.infof("Stop exposing Service '%s:%s' with ID '%s'",
+               changeEvent.getExposition().getService().getName(),
+               changeEvent.getExposition().getService().getVersion(),
+               changeEvent.getExposition().getService().getId());
+         gatewayRegistry.removeService(changeEvent.getExposition().getService().getId());
+      } else if (changeEvent.getChangeType() == ChangeType.UPDATED) {
+         // Update the service in the registry.
+         logger.infof("Update exposition for Service '%s:%s' with ID '%s'",
+               changeEvent.getExposition().getService().getName(),
+               changeEvent.getExposition().getService().getVersion(),
+               changeEvent.getExposition().getService().getId());
+         gatewayRegistry.removeService(changeEvent.getExposition().getService().getId());
+         fetchExposition(changeEvent.getExposition());
+      }
+   }
+
+   /** Fetch exposition details and register the service and its artifacts. */
+   void fetchExposition(Exposition exposition) {
+      logger.infof("Fetching artifacts for Service '%s:%s'", exposition.getService().getName(), exposition.getService().getVersion());
+
+      ServiceEntry service = registryMappers.toServiceEntry(exposition.getService());
+      logger.infof("Registering Service with ID '%s' for organization %s", service.id(), service.organizationId());
+      gatewayRegistry.addService(service);
+
+      ConfigurationEntry configuration = registryMappers.toConfigurationEntry(exposition.getConfiguration());
+      logger.infof("Building a ConfigurationPlan for Service with ID '%s'", service.id());
+      logger.debugf("ConfigurationPlan is %s", configuration);
+      gatewayRegistry.addConfiguration(service, configuration);
+
+      ArtifactsRequest artifactsRequest = ArtifactsRequest.newBuilder()
+            .setServiceId(exposition.getService().getId())
+            .build();
+      ArtifactsResponse artifactsResponse = discoveryService.fetchArtifacts(artifactsRequest);
+      logger.debugf("Fetched %d artifacts", artifactsResponse.getArtifactsCount(), artifactsResponse.getServiceId());
+
+      List<ArtifactEntry> attachedArtifacts = new ArrayList<>();
+      for (var artifact : artifactsResponse.getArtifactsList()) {
+         ArtifactEntry artifactEntry = registryMappers.toArtifactEntry(artifact);
+
+         // We don't need the protobuf schema for the service, so we skip it.
+         if (!artifactEntry.type().equals(ArtifactEntryType.PROTOBUF_SCHEMA)) {
+
+            if (artifactEntry.mainArtifact() && isRootArtifact(artifactEntry)) {
+               logger.debugf("Registering Artifact with ID '%s' for service %s as main", artifactEntry.id(), service.id());
+               gatewayRegistry.addMainArtifact(service, artifactEntry);
+            } else {
+               logger.debugf("Registering Artifact with ID '%s' for service %s as attached", artifactEntry.id(), service.id());
+               attachedArtifacts.add(artifactEntry);
+            }
+         }
+      }
+      // Complete registry with attached (to primary) or secondary artifacts.
+      if (!attachedArtifacts.isEmpty()) {
+         gatewayRegistry.addAttachedArtifacts(service, attachedArtifacts);
+         // Check if we need to process any attached artifact for special handling.
+         analyseAttachedArtifacts(attachedArtifacts, service);
+      }
+   }
+
+   private boolean isRootArtifact(ArtifactEntry artifact) {
+      return StringUtil.isNullOrEmpty(artifact.path());
+   }
+
+   private void analyseAttachedArtifacts(List<ArtifactEntry> attachedArtifacts, ServiceEntry service) {
+      try {
+         for (ArtifactEntry attachedArtifact : attachedArtifacts) {
+            JsonNode artifactNode = YAML_MAPPER.readTree(attachedArtifact.content());
+            String kind = artifactNode.path("kind").asText();
+            String version = artifactNode.path("apiVersion").asText();
+            if (ReshaprArtifactSchemas.RESOURCES_KIND.equals(kind)
+                  && ReshaprArtifactSchemas.RESOURCES_VERSION_V1ALPHA1.equals(version)) {
+               // Further processing of Resources artifact to check uiResources.
+               JsonNode resources = artifactNode.path("resources");
+               for (var resource : resources.properties()) {
+                  // Check for UI Tool resources only.
+                  if (resource.getKey().startsWith("ui://")) {
+                     JsonNode toolsNode = resource.getValue().path("tools");
+                     if (toolsNode != null && toolsNode.isArray()) {
+                        Iterator<JsonNode> toolsIterator = toolsNode.iterator();
+                        while (toolsIterator.hasNext()) {
+                           JsonNode toolNode = toolsIterator.next();
+                           ToolEntry toolEntry = null;
+                           ResourceEntry resourceEntry = null;
+
+                           if (toolNode.isTextual()) {
+                              toolEntry = new ToolEntry(service.id(), service.organizationId(), toolNode.asText());
+                              resourceEntry = new ResourceEntry("ui", resource.getKey(), new String[]{"app", "model"});
+                           } else {
+                              Map.Entry<String, JsonNode> toolNodeEntry = toolNode.properties().stream().findFirst().get();
+                              toolEntry = new ToolEntry(service.id(), service.organizationId(), toolNodeEntry.getKey());
+                              resourceEntry = new ResourceEntry("ui", resource.getKey(),
+                                    toolNodeEntry.getValue().path("visibility").isArray() ?
+                                          StreamSupport.stream(toolNodeEntry.getValue().path("visibility").spliterator(), false)
+                                                .map(JsonNode::asText).toArray(String[]::new)
+                                          : new String[]{"app", "model"}
+                              );
+                           }
+                           logger.infof("Registering UI Resource '%s' for Tool '%s' for Service with ID '%s'",
+                                 resourceEntry, toolEntry, service.id());
+                           gatewayRegistry.addResourceForTool(toolEntry, resourceEntry);
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      } catch (Exception e) {
+         logger.errorf("Failed to parse attached artifact content: %s", e.getMessage());
+      }
+   }
+}
