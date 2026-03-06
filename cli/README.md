@@ -5,7 +5,7 @@ This is the command line interface for the Reshapr project.
 ## Installing the CLI
 
 ```shell
-npm install -g reshapr-cli
+npm install -g @reshapr/reshapr-cli
 ```
 
 ## Running the CLI in dev mode
