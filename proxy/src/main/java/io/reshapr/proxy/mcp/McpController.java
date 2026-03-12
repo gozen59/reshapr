@@ -15,22 +15,29 @@
  */
 package io.reshapr.proxy.mcp;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.reshapr.proxy.mcp.converters.*;
+import io.reshapr.proxy.mcp.converters.GraphQLMcpToolConverter;
+import io.reshapr.proxy.mcp.converters.GrpcMcpToolConverter;
+import io.reshapr.proxy.mcp.converters.McpToolConverter;
+import io.reshapr.proxy.mcp.converters.OpenAPIMcpToolConverter;
 import io.reshapr.proxy.mcp.converters.ReshaprCustomToolsMcpToolConverter;
 import io.reshapr.proxy.mcp.state.ElicitationStore;
 import io.reshapr.proxy.context.SessionInfo;
 import io.reshapr.proxy.mcp.state.SessionStore;
 import io.reshapr.proxy.proxy.GrpcProxyService;
 import io.reshapr.proxy.proxy.ProxyService;
-import io.reshapr.proxy.registry.*;
 import io.reshapr.proxy.context.MethodHandlingInfo;
 import io.reshapr.proxy.context.MethodHandlingContext;
+import io.reshapr.proxy.registry.ArtifactEntryType;
+import io.reshapr.proxy.registry.ConfigurationEntry;
+import io.reshapr.proxy.registry.GatewayRegistry;
+import io.reshapr.proxy.registry.OperationEntry;
+import io.reshapr.proxy.registry.SecretEntry;
+import io.reshapr.proxy.registry.ServiceEntry;
 import io.reshapr.proxy.security.SecureEndpoint;
 import io.reshapr.proxy.util.WebUtils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.vertx.core.http.HttpServerRequest;
 import jakarta.annotation.Nullable;

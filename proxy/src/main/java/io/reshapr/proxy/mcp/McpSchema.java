@@ -568,7 +568,12 @@ public class McpSchema {
    public record TextResourceContents(
          @JsonProperty("uri") String uri,
          @JsonProperty("mimeType") String mimeType,
-         @JsonProperty("text") String text) implements ResourceContents {
+         @JsonProperty("text") String text,
+         @JsonProperty("_meta") Map<String, Object> meta) implements ResourceContents, Meta {
+
+      public TextResourceContents(String uri, String mimeType, String text) {
+         this(uri, mimeType, text, null);
+      }
    }
 
    @JsonInclude(JsonInclude.Include.NON_ABSENT)
