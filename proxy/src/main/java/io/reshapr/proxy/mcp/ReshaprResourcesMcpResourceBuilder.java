@@ -221,8 +221,10 @@ public class ReshaprResourcesMcpResourceBuilder implements McpResourceBuilder {
                BackendResponse fetchResponse = proxyService.callBackend(configuration, URI.create(remoteResourceUrl),
                      "GET", Collections.emptyMap(), null);
 
+               Map<String, Object> meta = resourceNode.has("_meta") ?
+                     YAML_MAPPER.convertValue(resourceNode.get("_meta"), new TypeReference<Map<String, Object>>() {}) : null;
                results.add(new McpSchema.TextResourceContents(request.uri(), "text/html;profile=mcp-app",
-                     new String(fetchResponse.content(), StandardCharsets.UTF_8)));
+                     new String(fetchResponse.content(), StandardCharsets.UTF_8), meta));
             }
          }
       }
