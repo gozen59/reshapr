@@ -56,7 +56,7 @@ jobs:
         run: |
           cd cli
           npm install
-          npm version ${{ github.event.inputs.version }} --git-tag-version=fals
+          npm version ${{ github.event.inputs.version }} --git-tag-version=false
 
       - name: Commit, push and tag changes
         run: |
