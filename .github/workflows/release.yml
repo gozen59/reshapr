@@ -16,6 +16,11 @@ on:
         required: false
         default: 'ALWAYS'
         type: string
+      deployNPMActive:
+        description: 'Deploy NPM value for the CLI (use NEVER if already published)'
+        required: false
+        default: 'ALWAYS'
+        type: string
 jobs:
   release:
     name: Release
@@ -70,6 +75,7 @@ jobs:
         run: mvn -B -Prelease clean deploy -DaltDeploymentRepository=local::default::file://`pwd`/target/staging-deploy
 
       - name: Publish package with NPM
+        if: ${{ github.event.inputs.deployNPMActive == 'ALWAYS' }}
         run: |
           cd cli
           npm sbom --sbom-format spdx > reshapr-cli-${{ github.event.inputs.version }}.spdx-sbom.json 
