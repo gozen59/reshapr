@@ -11,6 +11,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>Reshapr Commons</name>
+
   <properties>
     <graphql-java.version>24.1</graphql-java.version>
     <snake-yaml.version>2.4</snake-yaml.version>

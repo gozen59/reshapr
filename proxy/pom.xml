@@ -10,6 +10,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>Reshapr Proxy</name>
+
   <properties>
     <microcks.version>1.13.2</microcks.version>
     <smallrye-reactive.version>3.18.1</smallrye-reactive.version>
