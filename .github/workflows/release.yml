@@ -71,6 +71,7 @@ jobs:
 
       - name: Publish package with NPM
         run: |
+          cd cli
           npm sbom --sbom-format spdx > reshapr-cli-${{ github.event.inputs.version }}.spdx-sbom.json 
           npm run build
           npm publish --provenance
@@ -101,7 +102,9 @@ jobs:
         run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.nextVersion }}-SNAPSHOT
 
       - name: Set next iteration version for CLI
-        run: npm version ${{ github.event.inputs.nextVersion }}-SNAPSHOT --git-tag-version=false
+        run: |
+          cd cli
+          npm version ${{ github.event.inputs.nextVersion }}-SNAPSHOT --git-tag-version=false
 
       - name: Commit, push and tag changes
         run: |
