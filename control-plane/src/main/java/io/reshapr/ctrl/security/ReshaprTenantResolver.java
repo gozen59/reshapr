@@ -35,6 +35,7 @@ public class ReshaprTenantResolver implements TenantResolver {
    /** Get a JBoss logging logger. */
    private final Logger logger = Logger.getLogger(getClass());
 
+   public static final String ROOT_TENANT_ID = "reshapr";
    public static final String DEFAULT_TENANT_ID = "default";
 
    public static final String TENANT_ID_CONTEXT_KEY = "organizationId";
@@ -54,8 +55,11 @@ public class ReshaprTenantResolver implements TenantResolver {
    public String resolveTenantId() {
       logger.tracef("resolveTenantId() called with routing context from request: %s", vertxRequest.getCurrent());
 
-      String organizationId = Vertx.currentContext().getLocal(TENANT_ID_CONTEXT_KEY);
-      logger.tracef("resolveTenantId() organizationId from Vertx currentContext: %s", organizationId);
+      String organizationId = null;
+      if (Vertx.currentContext() != null) {
+         organizationId = Vertx.currentContext().getLocal(TENANT_ID_CONTEXT_KEY);
+         logger.tracef("resolveTenantId() organizationId from Vertx currentContext: %s", organizationId);
+      }
       if (organizationId != null) {
          return organizationId;
       }
@@ -71,6 +75,6 @@ public class ReshaprTenantResolver implements TenantResolver {
    @Override
    public boolean isRoot(String tenantId) {
       logger.tracef("isRoot() called with tenantId: %s", tenantId);
-      return "reshapr".equals(tenantId);
+      return ROOT_TENANT_ID.equals(tenantId);
    }
 }

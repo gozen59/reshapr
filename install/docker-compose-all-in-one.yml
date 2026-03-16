@@ -28,10 +28,13 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/reshapr
       - QUARKUS_DATASOURCE_USERNAME=reshapr
       - QUARKUS_DATASOURCE_PASSWORD=reshapr
-      - QUARKUS_FLYWAY_LOCATIONS=db/migration,db/data,db/dev-data
+      - RESHAPR_ADMIN_NAME=admin
+      - RESHAPR_ADMIN_PASSWORD=password
+      - RESHAPR_ADMIN_EMAIL=reshapr@example.com
+      - RESHAPR_DEFAULT_GATEWAY_TOKENS=my-super-secret-token-xyz
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5555/q/health/ready" ]
-      start_period: 6s
+      start_period: 10s
       interval: 10s
       timeout: 2s
       retries: 3
@@ -48,8 +51,11 @@ services:
     ports:
       - "7777:7777"
     environment:
-      RESHAPR_CTRL_HOST: control-plane
-      RESHAPR_CTRL_PORT: 5555
+      - RESHAPR_CTRL_HOST=control-plane
+      - RESHAPR_CTRL_PORT=5555
+      # Note: this token must match one of the tokens defined in RESHAPR_DEFAULT_GATEWAY_TOKENS in the control-plane
+      # with the prefix "reshapr-" (e.g. the default organization this gateway is attached)
+      - RESHAPR_CTRL_TOKEN=reshapr-my-super-secret-token-xyz
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:7777/q/health/ready" ]
       start_period: 5s
