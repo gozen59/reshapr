@@ -17,7 +17,7 @@
 
 import { program } from 'commander';
 import * as yaml from 'js-yaml';
-import { loginCommand, infoCommand, logoutCommand, importCommand, attachCommand, quotasCommand } from './commands/index.js';
+import { loginCommand, infoCommand, logoutCommand, importCommand, attachCommand, quotasCommand, runCommand, statusCommand, stopCommand } from './commands/index.js';
 import { ConfigUtil } from './utils/config.js';
 import { Logger } from './utils/logger.js';
 import { Context } from './utils/context.js';
@@ -30,7 +30,8 @@ program
   .version(CLI_VERSION)
   .hook('preAction', (thisCommand, actionCommand) => {
     ConfigUtil.readConfig();
-    if (actionCommand.name() != 'login' && actionCommand.name() != 'logout') {
+    const noAuthCommands = ['login', 'logout', 'run', 'status', 'stop'];
+    if (!noAuthCommands.includes(actionCommand.name())) {
       if (!ConfigUtil.config.token) {
         Logger.warn(`You are not logged in. Please login first using the \`${CLI_NAME} login\` command.`);
         process.exit(1);
@@ -100,5 +101,8 @@ program.addCommand(logoutCommand);
 program.addCommand(importCommand);
 program.addCommand(attachCommand);
 program.addCommand(quotasCommand);
+program.addCommand(runCommand);
+program.addCommand(statusCommand);
+program.addCommand(stopCommand);
 
 program.parse(process.argv);
