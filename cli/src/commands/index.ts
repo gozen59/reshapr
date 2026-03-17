@@ -25,3 +25,6 @@ export { configCommand } from './config.js';
 export { gatewayGroupCommand } from './gateway-group.js';
 export { tokenCommand } from './api-token.js';
 export { quotasCommand } from './quotas.js';
+export { runCommand } from './run.js';
+export { statusCommand } from './status.js';
+export { stopCommand } from './stop.js';
