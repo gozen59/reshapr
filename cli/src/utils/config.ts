@@ -17,7 +17,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs';
 
 import { Logger } from './logger.js';
-import { CLI_NAME, CLI_LABEL } from '../constants.js';
+import { CLI_NAME } from '../constants.js';
 
 export class ConfigUtil {
 
@@ -28,7 +28,7 @@ export class ConfigUtil {
   static writeConfig(config: Config): void {
     if (!fs.existsSync(ConfigUtil.configPath)) {
       try {
-        fs.mkdirSync(`${os.homedir()}/.${CLI_NAME}`, { recursive: true });
+        fs.mkdirSync(`${os.homedir()}/.${CLI_NAME}`, { recursive: true, mode: 0o700 });
       } catch (err) {
         Logger.error('Failed to create config directory: ' + err);
         process.exit(1);
@@ -52,7 +52,7 @@ export class ConfigUtil {
       }
     }
 
-    fs.writeFileSync(ConfigUtil.configPath, JSON.stringify(config, null, 2));
+    fs.writeFileSync(ConfigUtil.configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
     Logger.success(`Configuration saved to ${ConfigUtil.configPath}`);
     ConfigUtil.config = config;
   }

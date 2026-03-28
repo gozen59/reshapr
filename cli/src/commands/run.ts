@@ -107,14 +107,14 @@ async function downloadComposeFile(release: string, destPath: string): Promise<v
   // Replace image tags with the requested release.
   content = content.replace(/(quay\.io\/reshapr\/[^:]+):[\w.-]+/g, `$1:${release}`);
 
-  fs.mkdirSync(RESHAPR_DIR, { recursive: true });
-  fs.writeFileSync(destPath, content, 'utf-8');
+  fs.mkdirSync(RESHAPR_DIR, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(destPath, content, { encoding: 'utf-8', mode: 0o600 });
   Logger.success(`Compose file saved to ${destPath}`);
 }
 
 function saveRunState(release: string, composeFile: string): void {
   const state = { release, composeFile, startedAt: new Date().toISOString() };
-  fs.writeFileSync(RUN_STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+  fs.writeFileSync(RUN_STATE_FILE, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }
 
 export function readRunState(): { release: string; composeFile: string; startedAt: string } | null {
