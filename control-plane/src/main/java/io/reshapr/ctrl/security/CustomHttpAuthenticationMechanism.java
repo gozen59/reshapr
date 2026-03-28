@@ -53,6 +53,8 @@ public class CustomHttpAuthenticationMechanism implements HttpAuthenticationMech
    private static final String API_TOKEN_PREFIX = "ApiToken ";
    private static final String BEARER_PREFIX = "Bearer ";
 
+   private static final String GRPC_NORMALIZED_PATH_PREFIX = "/reshapr.";
+
 
    @Override
    public Set<Class<? extends AuthenticationRequest>> getCredentialTypes() {
@@ -66,7 +68,8 @@ public class CustomHttpAuthenticationMechanism implements HttpAuthenticationMech
 
    @Override
    public Uni<ChallengeData> getChallenge(RoutingContext context) {
-      return Uni.createFrom().item(new ChallengeData(HttpResponseStatus.UNAUTHORIZED.code(), "Authorization", "ApiToken <token> || Bearer <jwt>"));
+      return Uni.createFrom().item(new ChallengeData(HttpResponseStatus.UNAUTHORIZED.code(), "Authorization",
+            "Bearer <jwt> for REST || ApiToken <token> for gRPC"));
    }
 
    @Override
@@ -77,7 +80,11 @@ public class CustomHttpAuthenticationMechanism implements HttpAuthenticationMech
          String header = context.request().getHeader("Authorization");
 
          AuthenticationRequest request = null;
-         if (header.startsWith(API_TOKEN_PREFIX)){
+         // Only allow API token authentication for gRPC endpoints, to avoid conflicts with JWT authentication
+         // for REST endpoints. gRPC clients should use API tokens, while REST clients can use JWT tokens.
+         // This allows us to have long-lived API tokens for gRPC services that are read-only without worrying
+         // about JWT expiration that are suitable to mutable operations for REST endpoints.
+         if (header.startsWith(API_TOKEN_PREFIX) && context.normalizedPath().startsWith(GRPC_NORMALIZED_PATH_PREFIX)) {
             String token = context.request().getHeader("Authorization").substring(API_TOKEN_PREFIX.length());
             logger.tracef("authenticate() called with ApiToken: %s", token);
             request = new ApiTokenAuthenticationRequest(new TokenCredential(token, API_TOKEN_TYPE));
