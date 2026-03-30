@@ -22,7 +22,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.util.List;
@@ -48,7 +48,7 @@ public class User extends BaseEntity {
    @Enumerated(EnumType.STRING)
    public UserStatus status;
 
-   @OneToOne
+   @ManyToOne
    @JoinColumn(name = "default_organization_id")
    public Organization defaultOrganization;
 
