@@ -29,7 +29,7 @@ export async function openUpdateEditor(initialContent: any, onChanged: (modified
   const tempFile = path.join(tempDir, `${CLI_NAME}-update.json`);
 
   const initialData = JSON.stringify(initialContent, null, 2);
-  await fs.writeFile(tempFile, initialData, 'utf8');
+  await fs.writeFile(tempFile, initialData, { encoding: 'utf-8', mode: 0o600 });
 
   // Get the initial modification time
   const statsBefore = await fs.stat(tempFile);
