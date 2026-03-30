@@ -105,7 +105,7 @@ async function downloadComposeFile(release: string, destPath: string): Promise<v
   let content = await response.text();
 
   // Replace image tags with the requested release.
-  content = content.replace(/(quay\.io\/reshapr\/[^:]+):[\w.-]+/g, `$1:${release}`);
+  content = content.replace(/(registry\.reshapr\.io\/reshapr\/[^:]+):[\w.-]+/g, `$1:${release}`);
 
   fs.mkdirSync(RESHAPR_DIR, { recursive: true, mode: 0o700 });
   fs.writeFileSync(destPath, content, { encoding: 'utf-8', mode: 0o600 });
