@@ -26,6 +26,13 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/reshapr
       - QUARKUS_DATASOURCE_USERNAME=reshapr
       - QUARKUS_DATASOURCE_PASSWORD=reshapr
+      - RESHAPR_ADMIN_NAME=admin
+      - RESHAPR_ADMIN_PASSWORD=password
+      - RESHAPR_ADMIN_EMAIL=reshapr@example.com
+      - RESHAPR_DEFAULT_GATEWAY_TOKENS=my-super-secret-token-xyz
+      # Enable debug logging for the control plane to help with troubleshooting
+      #- QUARKUS_LOG_CONSOLE_LEVEL=DEBUG
+      #- QUARKUS_LOG_CATEGORY__IO_RESHAPR_CTRL__LEVEL=DEBUG
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5555/q/health/ready" ]
       start_period: 10s
