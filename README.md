@@ -27,7 +27,7 @@ npm install -g @reshapr/reshapr-cli
 You have two simple options:
 1. Use the [https://try.reshapr.io/](https://try.reshapr.io/) to try out the platform. Follow our detailed 
 [Try reShapr online](https://reshapr.io/docs/tutorials/try-reshapr-online) guide.
-2. Run the platform locally using containers and Docker runtime. Follow the next section for details.
+2. Run the platform locally using [containers and Docker runtime](https://reshapr.io/docs/how-to-guides/docker-compose). Follow the next section for details.
 
 ### Run the platform locally
 
