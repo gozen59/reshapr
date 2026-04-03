@@ -25,9 +25,9 @@ npm install -g @reshapr/reshapr-cli
 ### Choose your platform
 
 You have two simple options:
-1. Use the https://try.reshapr.io/ to try out the platform. Follow our detailed 
+1. Use the [https://try.reshapr.io/](https://try.reshapr.io/) to try out the platform. Follow our detailed 
 [Try reShapr online](https://reshapr.io/docs/tutorials/try-reshapr-online) guide.
-2. Run the platform locally using containers and Docker runtime. Follow next section for details.
+2. Run the platform locally using containers and Docker runtime. Follow the next section for details.
 
 ### Run the platform locally
 
@@ -38,16 +38,16 @@ reshapr run
 
 You should see a message like this:
 ```sh
-ℹ️  Resolved 'latest' to release '0.0.7'.
-ℹ️  Downloading compose file from https://raw.githubusercontent.com/reshaprio/reshapr/refs/tags/0.0.7/install/docker-compose-all-in-one.yml...
-✅ Compose file saved to /Users/<you>/.reshapr/docker-compose-0.0.7.yml
-ℹ️  Starting Reshapr containers (release: 0.0.7)...
+ℹ️  Resolved 'latest' to release '0.0.8'.
+ℹ️  Downloading compose file from https://raw.githubusercontent.com/reshaprio/reshapr/refs/tags/0.0.8/install/docker-compose-all-in-one.yml...
+✅ Compose file saved to /Users/<you>/.reshapr/docker-compose-0.0.8.yml
+ℹ️  Starting Reshapr containers (release: 0.0.8)...
 ✅ Reshapr containers started successfully.
 ```
 
-Connect to the control plane at http://localhost:5555 with default credentials (`admin/admin`):
+Connect to the control plane at http://localhost:5555 with default credentials (`admin/password`):
 ```sh
-reshapr login -s http://localhost:5555 -u admin -p admin
+reshapr login -s http://localhost:5555 -u admin -p password
 ```
 
 Import an OpenAPI file:
@@ -56,9 +56,9 @@ reshapr import -u https://raw.githubusercontent.com/open-meteo/open-meteo/refs/h
   --backendEndpoint https://api.open-meteo.com
 ```
 
-You now have a fully functional MCP Server powered by reShapr at http://localhost:7777/mcp/reshapr/Open-Meteo+APIs/1.0 ??
+You now have a fully functional MCP Server powered by reShapr at http://localhost:7777/mcp/reshapr/Open-Meteo+APIs/1.0 🎉
 
-You can try it out using a MCP client, [explore the CLI](https://reshapr.io/docs/tutorials/getting-started) and 
+You can try it out using an MCP client, [explore the CLI](https://reshapr.io/docs/tutorials/getting-started) and 
 [more features](https://reshapr.io/docs/references/features)!
 
 ## Contributing
