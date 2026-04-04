@@ -27,7 +27,7 @@ One of the biggest hurdles in building AI agents is **Context Overload**. Sendin
 
 ## 🌟 Key Features
 
-* AI-Native Transformation: Auto-transform API schemas into LLM-friendly tools.
+* AI-Native Transformation: Auto-transform API services into LLM-friendly tools.
 * Context Control: Filter and slim down payloads before they reach the LLM.
 * Multi-Protocol: REST, GraphQL, and gRPC support.
 * No-Code: Configure and deploy in minutes.
