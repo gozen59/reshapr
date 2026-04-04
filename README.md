@@ -4,15 +4,35 @@
 [![NPM](https://img.shields.io/npm/v/@reshapr/reshapr-cli?color=CB3837&logo=npm&style=for-the-badge)](https://www.npmjs.com/package/@reshapr/reshapr-cli)
 [![License](https://img.shields.io/github/license/reshaprio/reshapr?style=for-the-badge&logo=apache)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Project Chat](https://img.shields.io/badge/discord-reshapr-pink.svg?color=7289da&style=for-the-badge&logo=discord)](https://discord.gg/KyDUdam34h)
+[![GitHub stars](https://img.shields.io/github/stars/reshaprio/reshapr?style=for-the-badge&logo=github&color=ffad05)](https://github.com/reshaprio/reshapr)
 
-# Reshapr
+# Welcome to reShapr 🚀
 
-The open source, no-code MCP Server for AI-Native API Access.
+[**Website**](https://reshapr.io/) | [**About**](https://reshapr.io/about) | [**Docs**](https://reshapr.io/docs/) | [**Blog**](https://reshapr.io/blog) | [**Community**](https://reshapr.io/community)
 
-* [Documentation](https://reshapr.io/docs/)
-* Join us on [Discord](https://discord.gg/KyDUdam34h)
+---
 
-To get involved with our community, please familiarize yourself with the project's [Code of Conduct](./CODE_OF_CONDUCT.md).
+## ✨ What is reShapr?
+
+**reShapr** is the open source, no-code MCP Server for AI-Native API Access. It bridges the gap between traditional REST/GraphQL/gRPC services and LLMs by transforming complex services into discoverable, optimized MCP tools.
+
+> [!IMPORTANT]
+> To get involved with our community, please familiarize yourself with the project's [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+### 🧠 Solving the "Context Window" Problem
+
+One of the biggest hurdles in building AI agents is **Context Overload**. Sending massive JSON responses to an LLM wastes tokens and degrades performance. 
+
+[**reShapr introduces Context Control**](https://reshapr.io/blog/from-context-overload-to-context-control)
+
+## 🌟 Key Features
+
+* AI-Native Transformation: Auto-transform API schemas into LLM-friendly tools.
+* Context Control: Filter and slim down payloads before they reach the LLM.
+* Multi-Protocol: REST, GraphQL, and gRPC support.
+* No-Code: Configure and deploy in minutes.
+
+📖 [**Full Documentation**](https://reshapr.io/docs/) | [**Discord Community**](https://discord.gg/KyDUdam34h)
 
 ## Quick Start
 
@@ -78,6 +98,10 @@ coding conventions, and how to submit your changes.
 
 Come say hi on our [Discord server](https://discord.gg/KyDUdam34h) — whether you have questions, ideas, or just want to 
 chat with the community. We'd love to hear from you! 🚀
+
+## Support the project! 🌟
+
+If you think reShapr is useful for the AI ecosystem, [**give us a star** on our main repository](https://github.com/reshaprio/reshapr)! It helps us get more visibility and keep the project growing.
 
 ### Thanks!
 
