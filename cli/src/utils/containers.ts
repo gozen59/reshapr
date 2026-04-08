@@ -13,19 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 import { Logger } from "./logger.js";
 
-export function runDockerCompose(args: string[], composeFile: string): Promise<number> {
+export type ContainerEngine = 'docker' | 'podman';
+
+/**
+ * Check whether a given binary is available on the system PATH.
+ */
+function isCommandAvailable(command: string): boolean {
+  try {
+    execFileSync(command, ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detect the container engine to use.
+ *  - If the user explicitly chose one via `--engine`, validate it is available and return it.
+ *  - Otherwise, try `docker` first, then fall back to `podman`.
+ *  - Exit with an error if no engine is found.
+ */
+export function resolveContainerEngine(explicit?: string): ContainerEngine {
+  if (explicit) {
+    const engine = explicit as ContainerEngine;
+    if (!isCommandAvailable(engine)) {
+      Logger.error(`Container engine '${engine}' was explicitly requested but is not available on your system.`);
+      process.exit(1);
+    }
+    Logger.info(`Using explicitly selected container engine: ${engine}`);
+    return engine;
+  }
+
+  if (isCommandAvailable('docker')) {
+    Logger.info('Detected container engine: docker');
+    return 'docker';
+  }
+
+  if (isCommandAvailable('podman')) {
+    Logger.info('Detected container engine: podman');
+    return 'podman';
+  }
+
+  Logger.error('No container engine found. Please install docker or podman.');
+  process.exit(1);
+}
+
+export function runDockerCompose(args: string[], composeFile: string, engine: ContainerEngine = 'docker'): Promise<number> {
+  const composeArgs = ['compose', '-f', composeFile, ...args];
+
   return new Promise((resolve, reject) => {
-    const proc = spawn('docker', ['compose', '-f', composeFile, ...args], {
+    const proc = spawn(engine, composeArgs, {
       stdio: 'inherit',
       shell: false,
     });
     proc.on('close', (code) => resolve(code ?? 1));
     proc.on('error', (err) => {
-      Logger.error(`Failed to execute docker compose: ${err.message}`);
+      Logger.error(`Failed to execute ${engine} compose: ${err.message}`);
       reject(err);
     });
   });
