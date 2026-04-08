@@ -19,7 +19,7 @@ import * as path from 'node:path';
 
 import { Command } from "commander";
 import { Logger } from "../utils/logger.js";
-import { runDockerCompose } from '../utils/containers.js';
+import { runDockerCompose, resolveContainerEngine } from '../utils/containers.js';
 import { CLI_NAME, CLI_LABEL } from '../constants.js';
 
 const GITHUB_REPO = 'reshaprio/reshapr';
@@ -33,8 +33,10 @@ const RUN_STATE_FILE = path.join(RESHAPR_DIR, 'run-state.json');
 export const runCommand = new Command('run')
   .description(`Start ${CLI_LABEL} locally using Docker Compose`)
   .option('-r, --release <release>', 'Release of the containers to run', 'latest')
+  .option('-e, --engine <engine>', 'Container engine to use (docker or podman)')
   .action(async (options) => {
     let release: string = options.release;
+    const engine = resolveContainerEngine(options.engine);
 
     // Resolve 'latest' to the actual latest GitHub release tag.
     if (release === 'latest') {
@@ -51,15 +53,15 @@ export const runCommand = new Command('run')
       Logger.info(`Using cached compose file for release '${release}'.`);
     }
 
-    Logger.info(`Starting ${CLI_LABEL} containers (release: ${release})...`);
-    const exitCode = await runDockerCompose(['up', '-d'], composeFile);
+    Logger.info(`Starting ${CLI_LABEL} containers (release: ${release}, engine: ${engine})...`);
+    const exitCode = await runDockerCompose(['up', '-d'], composeFile, engine);
 
     if (exitCode !== 0) {
-      Logger.error(`docker compose exited with code ${exitCode}.`);
+      Logger.error(`${engine} compose exited with code ${exitCode}.`);
       process.exit(exitCode);
     }
 
-    saveRunState(release, composeFile);
+    saveRunState(release, composeFile, engine);
     Logger.success(`${CLI_LABEL} containers started successfully.`);
   });
 
@@ -112,12 +114,12 @@ async function downloadComposeFile(release: string, destPath: string): Promise<v
   Logger.success(`Compose file saved to ${destPath}`);
 }
 
-function saveRunState(release: string, composeFile: string): void {
-  const state = { release, composeFile, startedAt: new Date().toISOString() };
+function saveRunState(release: string, composeFile: string, engine: string): void {
+  const state = { release, composeFile, engine, startedAt: new Date().toISOString() };
   fs.writeFileSync(RUN_STATE_FILE, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }
 
-export function readRunState(): { release: string; composeFile: string; startedAt: string } | null {
+export function readRunState(): { release: string; composeFile: string; engine?: string; startedAt: string } | null {
   if (!fs.existsSync(RUN_STATE_FILE)) {
     return null;
   }

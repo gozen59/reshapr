@@ -16,7 +16,7 @@
 import { Command } from "commander";
 
 import { Logger } from "../utils/logger.js";
-import { runDockerCompose } from '../utils/containers.js';
+import { runDockerCompose, type ContainerEngine } from '../utils/containers.js';
 import { CLI_LABEL } from '../constants.js';
 import { readRunState } from './run.js';
 
@@ -29,11 +29,12 @@ export const statusCommand = new Command('status')
       process.exit(0);
     }
 
-    Logger.info(`${CLI_LABEL} containers (release: ${state.release}, started at: ${state.startedAt})`);
-    const exitCode = await runDockerCompose(['ps'], state.composeFile);
+    const engine: ContainerEngine = (state.engine as ContainerEngine) ?? 'docker';
+    Logger.info(`${CLI_LABEL} containers (release: ${state.release}, engine: ${engine}, started at: ${state.startedAt})`);
+    const exitCode = await runDockerCompose(['ps'], state.composeFile, engine);
 
     if (exitCode !== 0) {
-      Logger.error(`docker compose exited with code ${exitCode}.`);
+      Logger.error(`${engine} compose exited with code ${exitCode}.`);
       process.exit(exitCode);
     }
   });
