@@ -20,8 +20,8 @@
   <a href="https://reshapr.io/docs/tutorials/getting-started">
     <img src="https://raw.githubusercontent.com/reshaprio/.github/main/assets/demo-video-github-full.gif" width="750" alt="reShapr Demo - Click to get started">
   </a>
-  <br>
-  <em>✨ Transform any API into lean LLM contexts in seconds.
+  <br/>
+  <em>✨ Transform any API into lean LLM contexts in seconds.</em>
 </p>
 
 > [!IMPORTANT]
