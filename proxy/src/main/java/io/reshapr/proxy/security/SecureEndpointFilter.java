@@ -29,6 +29,7 @@ import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimNames;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.proc.BadJWTException;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
@@ -79,7 +80,7 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
 
    private final GatewayRegistry gatewayRegistry;
 
-   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "[localhost:7777]")
+   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
    public SecureEndpointFilter(GatewayRegistry gatewayRegistry) {
@@ -182,8 +183,8 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
       jwtProcessor.setJWSKeySelector(keySelector);
 
       // Set the required JWT claims for access tokens
-      jwtProcessor.setJWTClaimsSetVerifier(new DefaultJWTClaimsVerifier<>(
-            new JWTClaimsSet.Builder().issuer(oauth2Config.authorizationServers().getFirst()).build(),
+      jwtProcessor.setJWTClaimsSetVerifier(new MultipleIssuerClaimsVerifier(
+            oauth2Config.authorizationServers(),
             JWT_VERIFIED_CLAIMS
       ));
 
@@ -262,6 +263,26 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
                ctx.abortWith(Response.status(Response.Status.FORBIDDEN).build());
                return;
             }
+         }
+      }
+   }
+
+   /** Default JOSE verifies allows only exact match on issuers. This verifier allows multiple issuers. */
+   static class MultipleIssuerClaimsVerifier extends DefaultJWTClaimsVerifier<SecurityContext> {
+      private final List<String> expectedIssuers;
+
+      public MultipleIssuerClaimsVerifier(List<String> expectedIssuers, Set<String> requiredClaims) {
+         super(null, requiredClaims);
+         this.expectedIssuers = expectedIssuers;
+      }
+
+      @Override
+      public void verify(JWTClaimsSet claimsSet, SecurityContext context) throws BadJWTException {
+         super.verify(claimsSet, context);
+         // Verify that the issuer matches one of the configured authorization servers.
+         String issuer = claimsSet.getIssuer();
+         if (issuer == null || !expectedIssuers.contains(issuer)) {
+            throw new BadJWTException("JWT issuer '" + issuer + "' does not match any configured authorization server");
          }
       }
    }
