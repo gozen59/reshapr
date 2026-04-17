@@ -283,10 +283,22 @@ public class OpenAPIMcpToolConverter extends McpToolConverter {
 
                // Create a property node for the parameter.
                ObjectNode propertyNode = mapper.createObjectNode();
-               propertyNode.put("type", "string");
                schemaPropertiesNode.set(paramName, propertyNode);
                if (parameter.path(JSON_SCHEMA_REQUIRED_ELEMENT).asBoolean(false)) {
                   requiredPropertiesNode.add(paramName);
+               }
+
+               // Check the parameter type and default to string.
+               JsonNode paramSchema = parameter.get("schema");
+               if (paramSchema == null) {
+                  propertyNode.put(JSON_SCHEMA_TYPE_ELEMENT, "string");
+               } else {
+                  String paramType = paramSchema.path(JSON_SCHEMA_TYPE_ELEMENT).asText();
+                  propertyNode.put(JSON_SCHEMA_TYPE_ELEMENT, paramType);
+                  // Recopy enum if any, as it is not inherited by the parameter node from the schema node.
+                  if (paramSchema.has("enum")) {
+                     propertyNode.set("enum", paramSchema.get("enum"));
+                  }
                }
             }
          }
@@ -327,7 +339,7 @@ public class OpenAPIMcpToolConverter extends McpToolConverter {
          return followRefIfAny(schemaNode, paramsNode);
       }
 
-      // Worst case: follow all segment independently, starting from paths.
+      // Worst case: follow all segments independently, starting from paths.
       return traversePath(schemaNode, schemaNode.get("paths"), List.of(path, verb, "parameters"));
    }
 
