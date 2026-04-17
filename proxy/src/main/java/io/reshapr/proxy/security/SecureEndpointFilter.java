@@ -74,8 +74,8 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
    private static final Set<String> JWT_VERIFIED_CLAIMS = Set.of(
          JWTClaimNames.SUBJECT,
          JWTClaimNames.ISSUED_AT,
-         JWTClaimNames.EXPIRATION_TIME,
-         JWTClaimNames.JWT_ID
+         JWTClaimNames.EXPIRATION_TIME//,
+         //JWTClaimNames.JWT_ID
    );
 
    private final GatewayRegistry gatewayRegistry;
@@ -240,10 +240,16 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
 
          try {
             var scopeClaim = claimsSet.getStringClaim("scope");
+            if (scopeClaim == null) {
+               scopeClaim = claimsSet.getStringClaim("scp");
+            }
             if (scopeClaim != null) {
                tokenScopes = List.of(scopeClaim.split(" "));
             } else {
                tokenScopes = claimsSet.getStringListClaim("scope");
+               if (tokenScopes == null) {
+                  tokenScopes = claimsSet.getStringListClaim("scp");
+               }
             }
          } catch (ParseException pe) {
             // Malformed token.
