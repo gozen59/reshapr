@@ -14,7 +14,6 @@
 
   <properties>
     <microcks.version>1.13.2</microcks.version>
-    <smallrye-reactive.version>3.18.1</smallrye-reactive.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <nimbus-jose-jwt.version>10.3.1</nimbus-jose-jwt.version>
     <quarkus-web-bundler.version>1.9.3</quarkus-web-bundler.version>
@@ -66,11 +65,6 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest-client-jackson</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.smallrye.reactive</groupId>
-      <artifactId>smallrye-mutiny-vertx-web-client</artifactId>
-      <version>${smallrye-reactive.version}</version>
     </dependency>
 
     <dependency>
