@@ -1,0 +1,116 @@
+---
+openapi: 3.0.2
+info:
+  title: reShapr Authentication API v0.1
+  version: 0.0.1
+  description: reShapr control plane authentication REST API
+  contact:
+    name: Laurent Broudoux
+    url: https://github.com/lbroudoux
+    email: laurent.broudoux@gmail.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+paths:
+  /switchOrganization/{organizationId}:
+    post:
+      parameters:
+      - name: organizationId
+        description: Identifier of the user organization to switch to
+        schema:
+          type: string
+        in: path
+        required: true
+      responses:
+        "401":
+          description: User authentication failed
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Authentication successful. Return the base 64 encoded JWT token.
+      security:
+      - jwt-bearer: []
+      operationId: switchOrganization
+  /auth/login/reshapr:
+    post:
+      requestBody:
+        description: The user authentication credentials
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Authentication successful. Return the base 64 encoded JWT token.
+        "401":
+          description: User authentication failed
+      operationId: loginWithUsernamePassword
+      summary: Authenticate user using internal datastore
+  /auth/login/token:
+    post:
+      requestBody:
+        description: A delegated login request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DelegatedLoginRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Token generation successful. Return the base 64 encoded JWT
+            token.
+        "404":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Specified username is unknown
+      security:
+      - admin-api-key: []
+      operationId: generateTokenForDelegatedAuthent
+      summary: Generate a token on behalf of already authenticated user
+components:
+  schemas:
+    LoginRequest:
+      description: A wrapper around login credentials for basic login
+      required:
+      - username
+      - password
+      type: object
+      properties:
+        username:
+          description: The user username
+          type: string
+        password:
+          description: The user password
+          type: string
+    DelegatedLoginRequest:
+      description: A wrapper around username for delegated login
+      required:
+      - username
+      type: object
+      properties:
+        username:
+          description: The user username
+          type: string
+  securitySchemes:
+    jwt-bearer:
+      scheme: bearer
+      type: http
+      description: JWT Bearer acquired from the /auth API endpoint
+    admin-api-key:
+      type: apiKey
+      description: Control plane administration API key transferred as HTTP header
+      name: x-reshapr-api-key
+      in: header
