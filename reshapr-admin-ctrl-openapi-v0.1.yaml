@@ -1,0 +1,411 @@
+---
+openapi: 3.0.2
+info:
+  title: reShapr Admin Ctrl API v0.1
+  version: 0.0.1
+  description: reShapr control place administration REST API
+  contact:
+    name: Laurent Broudoux
+    url: https://github.com/lbroudoux
+    email: laurent.broudoux@gmail.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+paths:
+  /admin/users/{username}/organization:
+    post:
+      requestBody:
+        description: The organization to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationRequest'
+          description: The organization has been created and is owned by user
+        "409":
+          description: An organization with this name already exist
+        "404":
+          description: The User with this name is unknown
+      security:
+      - admin-api-key: []
+      operationId: createUserOwnedOrganization
+    parameters:
+    - name: username
+      description: The unique username of user to manage organization for
+      schema:
+        type: string
+      in: path
+      required: true
+  /admin/users:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      responses:
+        "201":
+          description: The User has been registered in control plane
+        "409":
+          description: A User with this username already exist
+      security:
+      - admin-api-key: []
+      operationId: createUser
+  /admin/users/{username}/organization/{organizationName}:
+    put:
+      requestBody:
+        description: The new information to update organization
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationRequest'
+          description: Organization has been updated
+        "404":
+          description: The user with name is unknown
+      operationId: updateOrganization
+    parameters:
+    - name: username
+      description: The unique username of user to manage organization for
+      schema:
+        type: string
+      in: path
+      required: true
+    - name: organizationName
+      description: The unique name of organization
+      schema:
+        type: string
+      in: path
+      required: true
+  /admin/users/{username}/memberships:
+    put:
+      requestBody:
+        description: The list of organization names to assign user as member
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+          description: User has been assigned as member of this organizations. Return
+            the list of names.
+        "404":
+          description: The user with proivide dname is unknown
+      security:
+      - admin-api-key: []
+      operationId: assignMemberships
+    parameters:
+    - name: username
+      description: The name of user to manage memberships for
+      in: path
+      required: true
+  /admin/quotas/organization/{organizationName}:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quota'
+          description: The list of quotas applied to this organization
+        "404":
+          description: The organization with this name is unknown
+      security:
+      - admin-api-key: []
+      operationId: getOrganizatoinQuotas
+    post:
+      requestBody:
+        description: The list of quotas to apply to organization
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/QuotaRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quota'
+          description: The list of effectively applied quotas to the organization
+        "404":
+          description: The organization with this name is unknown
+      security:
+      - admin-api-key: []
+      operationId: setOrganizationQuotas
+    parameters:
+    - name: organizationName
+      description: The name of organization to manage quotas for
+      schema:
+        type: string
+      in: path
+      required: true
+  /admin/quotas/organization/{organizationName}/force:
+    post:
+      requestBody:
+        description: The list of forced complete quota requests
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/FullQuotaRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quota'
+          description: The current quota of the organization after application
+        "404":
+          description: The organization with this name is unknown
+      security:
+      - admin-api-key: []
+      operationId: forceOrganizationQuotas
+      summary: Force setting remaining to limit of metric quota
+    parameters:
+    - name: organizationName
+      description: The organization name to managed quotas for
+      schema:
+        type: string
+      in: path
+      required: true
+  /admin/tokens/apiTokens/{organisationName}:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+          description: The list of ApiToken owned by this organization
+      security:
+      - admin-api-key: []
+      operationId: getApiTokens
+    parameters:
+    - name: organisationName
+      description: The name of the organization to manage tokens for
+      schema:
+        type: string
+      in: path
+      required: true
+  /admin/users/{username}/organization/{organizationName}/owner:
+    put:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: User has been assigned as organization owner
+      security:
+      - admin-api-key: []
+      operationId: updateOrganizationOwner
+    parameters:
+    - name: username
+      description: The unique username of user to manage organization for
+      in: path
+      required: true
+    - name: organizationName
+      description: The unique username of organization
+      in: path
+      required: true
+components:
+  schemas:
+    UserRequest:
+      description: Basic information for creating a User in control plane
+      required:
+      - username
+      - email
+      type: object
+      properties:
+        username:
+          description: The user username
+          type: string
+        email:
+          description: The user email
+          type: string
+        password:
+          description: The user password (only if authentication is done by control
+            plane)
+          type: string
+        firstname:
+          description: The user firstname
+          type: string
+        lastname:
+          description: The user lastname
+          type: string
+    User:
+      description: A registered user in control plane
+      type: object
+      allOf:
+      - required:
+        - id
+        type: object
+        properties:
+          id:
+            description: The unique user identifier in the control plane
+            type: string
+      - $ref: '#/components/schemas/UserRequest'
+    Organization:
+      description: An organization within the control plane
+      type: object
+      allOf:
+      - required:
+        - owner
+        - id
+        type: object
+        properties:
+          owner:
+            $ref: '#/components/schemas/User'
+            description: The User owning this origanization
+          id:
+            description: The organization unique identifier
+            type: string
+          members:
+            description: The non-owner members of this organization
+            type: array
+            items:
+              $ref: '#/components/schemas/User'
+      - $ref: '#/components/schemas/OrganizationRequest'
+    Quota:
+      description: A quota that defines limits on the usage of a specific metric for
+        an organization.
+      type: object
+      allOf:
+      - required:
+        - id
+        - organizationId
+        type: object
+        properties:
+          id:
+            description: The unique identifier of the quota value
+            type: string
+          organizationId:
+            description: The unique identifier of the organization subject to this
+              quota
+            type: string
+          remaining:
+            format: int64
+            description: The remanining intance of metric within this quota
+            type: integer
+      - $ref: '#/components/schemas/QuotaRequest'
+    QuotaRequest:
+      description: A quota that defines limits on the usage of a specific metric for
+        an organization.
+      required:
+      - metric
+      - enabled
+      - limit
+      type: object
+      properties:
+        metric:
+          description: The metric subject to quota
+          type: string
+        enabled:
+          description: Whether quota is enabled for this metric
+          type: boolean
+        limit:
+          format: int64
+          description: The maximum number of instance of this metric that is allowed
+          type: integer
+    FullQuotaRequest:
+      description: A complete quota request with the remaning being set
+      type: object
+      allOf:
+      - required:
+        - remaining
+        type: object
+        properties:
+          remaining:
+            format: int64
+            description: The remaining instance of that quota metric
+            type: integer
+      - $ref: '#/components/schemas/QuotaRequest'
+    ApiToken:
+      description: An API Token that allows connecting Gateways to the control plane
+      required:
+      - id
+      - organizationId
+      - name
+      - token
+      - validUntil
+      - username
+      type: object
+      properties:
+        id:
+          description: Unique identifier of this token
+          type: string
+        organizationId:
+          description: Unique id of the organization owning the token
+          type: string
+        name:
+          description: Name of this token
+          type: string
+        token:
+          description: This token string value
+          type: string
+        validUntil:
+          format: date-time
+          description: End of validity date of this token
+          type: string
+        username:
+          description: The name of the user that has issued the token
+          type: string
+    OrganizationRequest:
+      description: Basic information for creating an Organization in control plane
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          description: The organization name
+          maxLength: 100
+          pattern: "^[a-zA-Z0-9_]*$"
+          type: string
+        description:
+          description: The organization description
+          maxLength: 255
+          type: string
+        icon:
+          description: The organization icon (can be a URL or a base64 encoded string)
+          type: string
+  securitySchemes:
+    admin-api-key:
+      type: apiKey
+      description: Control plane administration API key transferred as HTTP header
+      name: x-reshapr-api-key
+      in: header
