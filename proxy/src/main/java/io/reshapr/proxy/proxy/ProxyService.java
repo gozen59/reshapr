@@ -25,6 +25,7 @@ import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.HttpHeaders;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
@@ -58,6 +59,9 @@ public class ProxyService {
 
    private static final List<String> RESTRICTED_HEADERS = List.of("host", "connection", "x-reshapr-key");
 
+   @ConfigProperty(name = "reshapr.gateway.backend.http.default-timeout")
+   Long defaultBackendTimeout;
+
    /**
     * @param configuration The configuration entry containing backend security details.
     * @param externalUrl The backend URL overriding the one from configuration.
@@ -67,7 +71,8 @@ public class ProxyService {
     * @return A BackendResponse containing the status code, body, and headers from the backend response.
     */
    public BackendResponse callBackend(ConfigurationEntry configuration, URI externalUrl, String method, Map<String, List<String>> headers, String body) {
-      long timeoutMs = configuration.backendEndpointTimeout() != null ? configuration.backendEndpointTimeout() : 3_000L;
+      // Set timeout with priority to configuration value, then default if not set.
+      long timeoutMs = configuration.backendTimeout() != null ? configuration.backendTimeout() : defaultBackendTimeout;
 
       HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
             .uri(externalUrl)

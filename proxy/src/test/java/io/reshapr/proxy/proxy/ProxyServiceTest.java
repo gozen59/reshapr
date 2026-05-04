@@ -54,7 +54,7 @@ class ProxyServiceTest {
             "id", "test", "http://example.com",
             5_000L, List.of(), List.of(), null, null, null);
 
-      assertEquals(5_000L, config.backendEndpointTimeout());
+      assertEquals(5_000L, config.backendTimeout());
    }
 
    @Test
@@ -63,8 +63,8 @@ class ProxyServiceTest {
             "id", "test", "http://example.com",
             null, List.of(), List.of(), null, null, null);
 
-      long timeoutMs = config.backendEndpointTimeout() != null
-            ? config.backendEndpointTimeout()
+      long timeoutMs = config.backendTimeout() != null
+            ? config.backendTimeout()
             : 3_000L;
 
       assertEquals(3_000L, timeoutMs);

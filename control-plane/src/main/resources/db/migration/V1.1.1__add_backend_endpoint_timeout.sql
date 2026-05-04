@@ -1,2 +1,2 @@
 ALTER TABLE configuration_plans
-    ADD COLUMN backend_endpoint_timeout bigint;
+    ADD COLUMN backend_timeout bigint;

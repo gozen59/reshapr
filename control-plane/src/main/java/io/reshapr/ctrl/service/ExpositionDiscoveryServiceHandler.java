@@ -335,7 +335,6 @@ public class ExpositionDiscoveryServiceHandler extends ExpositionDiscoveryServic
             .setId(configuration.id)
             .setName(configuration.name)
             .setBackendEndpoint(configuration.backendEndpoint)
-            .setBackendEndpointTimeout(configuration.backendEndpointTimeout != null ? configuration.backendEndpointTimeout : 3_000L)
             .addAllExcludedOperations(configuration.excludedOperations != null ? configuration.excludedOperations : List.of())
             .addAllIncludedOperations(configuration.includedOperations != null ? configuration.includedOperations : List.of());
 
@@ -352,6 +351,9 @@ public class ExpositionDiscoveryServiceHandler extends ExpositionDiscoveryServic
             oauth2Builder.addAllScopes(configuration.oauth2Configuration.scopes());
          }
          builder.setOauth2Configuration(oauth2Builder.build());
+      }
+      if (configuration.backendTimeout != null) {
+         builder.setBackendTimeout(configuration.backendTimeout);
       }
       if (configuration.backendSecret != null) {
          builder.setBackendSecret(grpcSecretFromModel(configuration.backendSecret));
