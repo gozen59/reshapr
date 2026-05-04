@@ -22,5 +22,6 @@ package io.reshapr.proxy.rest.admin;
 public record ConfigurationEntryDTO(
       String id,
       String name,
-      String backendEndpoint) {
+      String backendEndpoint,
+      Long backendTimeout) {
 }

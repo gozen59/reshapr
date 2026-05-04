@@ -47,6 +47,7 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.ByteArrayInputStream;
@@ -76,6 +77,9 @@ public class GrpcProxyService {
 
    private static final List<String> RESTRICTED_HEADERS = List.of("host", "connection", "accept",
          "content-type", "content-length", "user-agent");
+
+   @ConfigProperty(name = "reshapr.gateway.backend.grpc.default-timeout")
+   Long defaultBackendTimeout;
 
    /**
     * @param configuration The configuration entry containing backend security details.
@@ -131,9 +135,9 @@ public class GrpcProxyService {
       }
       byte[] requestBytes = reqBuilder.build().toByteArray();
 
-      // TODO: Use the configuration plan to determine the timeout.
-      long timeout = 3000; // Default timeout of 3 seconds.
-      CallOptions callOptions = CallOptions.DEFAULT.withDeadline(Deadline.after(timeout, TimeUnit.MILLISECONDS));
+      // Set timeout with priority to configuration value, then default if not set.
+      long timeoutMs = configuration.backendTimeout() != null ? configuration.backendTimeout() : defaultBackendTimeout;
+      CallOptions callOptions = CallOptions.DEFAULT.withDeadline(Deadline.after(timeoutMs, TimeUnit.MILLISECONDS));
 
       if (configuration.backendSecret() != null) {
          // Set the authentication token as call credentials if provided in the configuration.
