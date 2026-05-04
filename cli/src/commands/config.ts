@@ -96,6 +96,9 @@ configCommand.command('get <id>')
     Logger.log(`Description     : ${config.description}`);
     Logger.log(`Service ID      : ${config.serviceId}`);
     Logger.log(`Backend Endpoint: ${config.backendEndpoint}`);
+    if (config.backendTimeout) {
+      Logger.log(`Backend Timeout : ${config.backendTimeout} ms`);
+    }
     Logger.log(`Included Ops.   : ${JSON.stringify(config.includedOperations || [])}`);
     Logger.log(`Excluded Ops.   : ${JSON.stringify(config.excludedOperations || [])}`);
     Logger.log(`Backend Secret  : ${config.backendSecretId != undefined ? config.backendSecretId : 'No'}`);
@@ -119,6 +122,14 @@ configCommand.command('create <name>')
   .option('-d, --description <text>', 'Description of the configuration plan')
   .requiredOption('--be, --backendEndpoint <backendEndpointURL>', 'Backend endpoint URL')
   .option('--bs, --backendSecret <backendSecretId>', 'ID of the secret to authenticate with the backend endpoint')
+  .option('--bt, --backendTimeout <backendTimeout>', 'Timeout in milliseconds for requests to the backend endpoint', (value) => {
+    const timeoutMs = parseInt(value, 10);
+    if (isNaN(timeoutMs) || timeoutMs < 0) {
+      Logger.error('backendTimeout must be a positive number representing milliseconds');
+      process.exit(1);
+    }
+    return value;
+  })
   .option('--filter', 'Filter operations to include or exclude in the configuration plan')
   .option('--io, --includedOperations [<operation1>, <operation2>]', 'Include these operations when importing service artifact (JSON array). Takes precedence over excludedOperations.')
   .option('--eo, --excludedOperations [<operation1>, <operation2>]', 'Exclude these operations when importing service artifact (JSON array). Only considered if no includedOperations.')
@@ -144,6 +155,7 @@ configCommand.command('create <name>')
         description: options.description,
         backendEndpoint: options.backendEndpoint,
         backendSecretId: options.backendSecret || undefined,
+        backendTimeout: options.backendTimeout || undefined,
         includedOperations: options.includedOps || undefined,
         excludedOperations: options.excludedOps || undefined,
         apiKey: (options.apiKey ? 'generate-me' : undefined),
@@ -172,6 +184,14 @@ configCommand.command('create-oauth <name>')
   .option('-d, --description <text>', 'Description of the configuration plan')
   .requiredOption('--be, --backendEndpoint <backendEndpointURL>', 'Backend endpoint URL')
   .option('--bs, --backendSecret <backendSecretId>', 'ID of the secret to authenticate with the backend endpoint')
+  .option('--bt, --backendTimeout <backendTimeout>', 'Timeout in milliseconds for requests to the backend endpoint', (value) => {
+    const timeoutMs = parseInt(value, 10);
+    if (isNaN(timeoutMs) || timeoutMs < 0) {
+      Logger.error('backendTimeout must be a positive number representing milliseconds');
+      process.exit(1);
+    }
+    return value;
+  })
   .option('--filter', 'Filter operations to include or exclude in the configuration plan')
   .option('--io, --includedOperations [<operation1>, <operation2>]', 'Include these operations when importing service artifact (JSON array). Takes precedence over excludedOperations.')
   .option('--eo, --excludedOperations [<operation1>, <operation2>]', 'Exclude these operations when importing service artifact (JSON array). Only considered if no includedOperations.')
@@ -205,6 +225,7 @@ configCommand.command('create-oauth <name>')
         description: options.description,
         backendEndpoint: options.backendEndpoint,
         backendSecretId: options.backendSecret || undefined,
+        backendTimeout: options.backendTimeout || undefined,
         includedOperations: options.includedOps || undefined,
         excludedOperations: options.excludedOps || undefined,
         oauth2Configuration: options.oauth2Configuration
