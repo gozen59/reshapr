@@ -21,5 +21,7 @@ import io.smallrye.config.ConfigMapping;
 public interface AuthenticationIdentityProviderConfig {
    boolean enabled();
    String url();
-   String realm();
+   String tokenUrl();
+   String clientId();
+   String clientSecret();
 }
