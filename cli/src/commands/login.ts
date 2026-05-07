@@ -65,8 +65,11 @@ export const loginCommand = new Command('login')
     });
 
     if (configData.mode === 'on-premises') {
-      await handleOnPremisesLogin(options);
-      //await handleSaaSLogin(options);
+      if (configData.oidcEnabled) {
+        await handleOidcLogin(options);
+      } else { 
+        await handleLoginPasswordLogin(options);
+      }
     } else if (configData.mode === 'saas') {
       await handleSaaSLogin(options);
     }
@@ -82,7 +85,7 @@ export const loginCommand = new Command('login')
     });
   }
 
-  async function handleOnPremisesLogin(options: any) {
+  async function handleLoginPasswordLogin(options: any) {
     // Handle on-premises login logic here if needed.
     if (!options.username) {
       const username = await inquirer.prompt({
@@ -146,7 +149,17 @@ export const loginCommand = new Command('login')
     });
   }
 
+  async function handleOidcLogin(options: any) {
+    // Use the control plane's OIDC login flow for authentication.
+    await handleAuthenticationBrowserFlow(`${options.server}/auth/login/oidc`, options);
+  }
+
   async function handleSaaSLogin(options: any) {
+    // Use the Saas /cli/login endpoint flow for authentication.
+    await handleAuthenticationBrowserFlow(`${options.server}/cli/login`, options);
+  }
+
+  async function handleAuthenticationBrowserFlow(authServerUrl: string, options: any) {
     // Prepare a token for reception.
     let token: string | null = null;
 
@@ -248,7 +261,7 @@ export const loginCommand = new Command('login')
     });
 
     // Open the browser to the SaaS CLI login page.
-    const loginUrl = `${options.server}/cli/login?redirect_uri=http://localhost:${localPort}`;
+    const loginUrl = `${authServerUrl}?redirect_uri=http://localhost:${localPort}`;
     Logger.info(`Opening browser: ${loginUrl}`);
 
     // Opens the URL in the default browser.
