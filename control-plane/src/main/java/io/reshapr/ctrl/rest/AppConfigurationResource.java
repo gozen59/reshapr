@@ -46,9 +46,6 @@ public class AppConfigurationResource {
    @Path("/")
    public BootstrapConfiguration getBootstrapConfiguration() {
       logger.debugf("Returning bootstrap configuration with mode %s", mode);
-      if (authenticationConfig.enabled()) {
-         return new BootstrapConfiguration(mode, version, buildTimestamp, null, authenticationConfig);
-      }
-      return new BootstrapConfiguration(mode, version, buildTimestamp, null, null);
+      return new BootstrapConfiguration(mode, version, buildTimestamp, authenticationConfig.enabled());
    }
 }

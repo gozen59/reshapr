@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reshapr.ctrl.config;
+package io.reshapr.security;
 
-import io.smallrye.config.ConfigMapping;
+/**
+ * Exception thrown when a process related to authentication fails.
+ * @author laurent
+ */
+public class AuthenticationException extends RuntimeException {
 
-@ConfigMapping(prefix = "reshapr.authentication.idp")
-public interface AuthenticationIdentityProviderConfig {
-   boolean enabled();
-   String url();
-   String tokenUrl();
-   String clientId();
-   String clientSecret();
+   public AuthenticationException(String message) {
+      super(message);
+   }
 }

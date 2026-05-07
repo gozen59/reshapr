@@ -15,17 +15,16 @@
  */
 package io.reshapr.ctrl.rest;
 
-import io.reshapr.ctrl.config.AuthenticationIdentityProviderConfig;
-
 /**
  * BootstrapConfiguration holds the configuration for the application bootstrap.
- * @param mode
- * @param authenticationConfig
+ * @param mode Deployment of the control-plane ('on-premises' or 'saas')
+ * @param version Version of the control-plane
+ * @param buildTimestamp Build timestamp of the control-plane
+ * @param oidcEnabled Whether OIDC authentication is enabled
  */
 public record BootstrapConfiguration(
       String mode,
       String version,
       String buildTimestamp,
-      String internalIDPUrl,
-      AuthenticationIdentityProviderConfig authenticationConfig) {
+      boolean oidcEnabled) {
 }

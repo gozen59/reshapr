@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reshapr.ctrl.config;
+package io.reshapr.ctrl.service;
 
-import io.smallrye.config.ConfigMapping;
+/**
+ * Exception thrown when a similar entity already exists.
+ * @author laurent
+ */
+public class EntityAlreadyExistException extends RuntimeException {
 
-@ConfigMapping(prefix = "reshapr.authentication.idp")
-public interface AuthenticationIdentityProviderConfig {
-   boolean enabled();
-   String url();
-   String tokenUrl();
-   String clientId();
-   String clientSecret();
+   public EntityAlreadyExistException(String message) {
+      super(message);
+   }
 }

@@ -1,0 +1,23 @@
+{#include onboardingBase.html}
+{#title}reShapr Onboarding{/title}
+
+<h3>Welcome '{username}'</h3>
+<h4 class="mt-3">Let's set up your account. Choose a name for your personal organization.</h4>
+
+<div class="row">
+  <div class="col-6 flex-column">
+    <form class="mt-4" method="post" action="/auth/onboarding/oidc">
+      <input type="hidden" name="username" value="{username}"/>
+      <input type="hidden" name="redirectUri" value="{redirectUri}"/>
+      <div class="mb-3">
+        <label for="organizationName" class="form-label">Organization name</label>
+        <input type="text" class="form-control" id="organizationName" name="organizationName" aria-describedby="organisationHelp" placeholder="{username}"/>
+        <div id="organisationHelp" class="form-text">3-50 characters. Letters, numbers and underscores only.</div>
+      </div>
+
+      <div class="mt-4 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -17,12 +17,13 @@ package io.reshapr.ctrl.rest.admin;
 
 import io.reshapr.ctrl.model.Organization;
 import io.reshapr.ctrl.model.User;
-import io.reshapr.ctrl.model.UserStatus;
 import io.reshapr.ctrl.repository.OrganizationRepository;
 import io.reshapr.ctrl.repository.UserRepository;
 import io.reshapr.ctrl.security.AdminAuthenticated;
+import io.reshapr.ctrl.service.DependencyNotFoundException;
+import io.reshapr.ctrl.service.EntityAlreadyExistException;
+import io.reshapr.ctrl.service.OnboardingService;
 
-import io.quarkus.elytron.security.common.BcryptUtil;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -43,83 +44,50 @@ public class UserResource {
    /** Get a JBoss logging logger. */
    private final Logger logger = Logger.getLogger(getClass());
 
+   private final OnboardingService onboardingService;
    private final UserRepository userRepository;
    private final OrganizationRepository organizationRepository;
 
    /**
     * Build a UserResource with required dependencies.
+    * @param onboardingService The OnboardingService to handle user and organization creation logic.
     * @param userRepository The User repository
     * @param organizationRepository The Organization repository
     */
-   public UserResource(UserRepository userRepository, OrganizationRepository organizationRepository) {
+   public UserResource(OnboardingService onboardingService, UserRepository userRepository, OrganizationRepository organizationRepository) {
+      this.onboardingService = onboardingService;
       this.userRepository = userRepository;
       this.organizationRepository = organizationRepository;
    }
 
    @POST
-   @Transactional
-   public Response createUser(UserDTO userDTO) {
-      logger.infof("Creating user with username: %s", userDTO.username());
-
-      // Check if user already exists.
-      User user = userRepository.findByUsername(userDTO.username());
-      if (user != null) {
+   public Response createUser(@Valid UserDTO userDTO) {
+      User user = null;
+      try {
+         user = onboardingService.createUser(new OnboardingService.UserInfo(
+            userDTO.username(), userDTO.email(), userDTO.password(),
+               userDTO.firstname(), userDTO.lastname()
+         ));
+      } catch (EntityAlreadyExistException _) {
          logger.warnf("User with username %s already exists", userDTO.username());
          return Response.status(Response.Status.CONFLICT.getStatusCode(), "User already exists").build();
       }
-
-      // Create and persist user.
-      user = new User();
-      user.username = userDTO.username();
-      user.email = userDTO.email();
-      if (userDTO.password() != null && !userDTO.password().isBlank()) {
-         user.password = BcryptUtil.bcryptHash(userDTO.password());
-      }
-      if (userDTO.firstname() != null) {
-         user.firstname = userDTO.firstname();
-      }
-      if (userDTO.lastname() != null) {
-         user.lastname = userDTO.lastname();
-      }
-      user.status = UserStatus.REGISTERED;
-      userRepository.persistAndFlush(user);
-
       return Response.status(Response.Status.CREATED).entity(user).build();
    }
 
    @POST
    @Path("/{username}/organization")
-   @Transactional
    public Response createOrganization(@PathParam("username") String username, @Valid OrganizationDTO organizationDTO) {
-      logger.infof("Creating organization %s for user %s", organizationDTO.name(), username);
-
-      // Find user by username.
-      User user = userRepository.findByUsername(username);
-      if (user == null) {
+      try {
+         onboardingService.createOrganization(username, new OnboardingService.OrganizationInfo(
+               organizationDTO.name(), organizationDTO.description(), organizationDTO.icon()));
+      } catch (DependencyNotFoundException _) {
          logger.warnf("User with username %s not found", username);
          return Response.status(Response.Status.NOT_FOUND.getStatusCode(), "User not found").build();
-      }
-
-      // Check if organization already exists.
-      Organization organization = organizationRepository.findByName(organizationDTO.name());
-      if (organization != null) {
+      } catch (EntityAlreadyExistException _) {
          logger.warnf("Organization with name %s already exists", organizationDTO.name());
          return Response.status(Response.Status.CONFLICT.getStatusCode(), "Organization already exists").build();
       }
-
-      // Create and persist organization.
-      organization = new Organization();
-      organization.name = organizationDTO.name();
-      organization.owner = user;
-      organizationRepository.persistAndFlush(organization);
-
-      // Assign organization to user.
-      user.organizations.add(organization);
-      if (user.defaultOrganization == null) {
-         user.defaultOrganization = organization;
-      }
-      userRepository.persistAndFlush(user);
-
       return Response.status(Response.Status.CREATED).entity(organizationDTO).build();
    }
 
