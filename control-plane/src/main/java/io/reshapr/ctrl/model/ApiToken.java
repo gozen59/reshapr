@@ -20,8 +20,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
@@ -44,7 +42,6 @@ public class ApiToken extends BaseEntity {
    @Column(name="organization_id", nullable = false)
    public String organizationId;
 
-   @Temporal(TemporalType.TIMESTAMP)
    @Column(name = "valid_until", nullable = false, columnDefinition = "TIMESTAMP")
    public LocalDateTime validUntil;
 

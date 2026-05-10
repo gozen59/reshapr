@@ -22,8 +22,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
@@ -41,11 +39,9 @@ public class Gateway extends TenantAwareEntity {
    @Column(nullable = false)
    public String name;
 
-   @Temporal(TemporalType.TIMESTAMP)
    @Column(name = "started_at", nullable = false, columnDefinition = "TIMESTAMP")
    public LocalDateTime startedAt;
 
-   @Temporal(TemporalType.TIMESTAMP)
    @Column(name = "last_heartbeat", nullable = false, columnDefinition = "TIMESTAMP")
    public LocalDateTime lastHeartbeat;
 
