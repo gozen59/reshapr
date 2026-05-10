@@ -24,8 +24,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 
@@ -41,7 +39,6 @@ import java.util.List;
 @Table(name = "active_expositions")
 public class ActiveExposition extends TenantAwareEntity {
 
-   @Temporal(TemporalType.TIMESTAMP)
    @Column(name = "created_on", columnDefinition = "TIMESTAMP")
    public LocalDateTime createdOn;
 

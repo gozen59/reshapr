@@ -23,8 +23,6 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
@@ -48,7 +46,6 @@ public class Service extends TenantAwareEntity {
    @Column(nullable = false)
    public String version;
 
-   @Temporal(TemporalType.TIMESTAMP)
    @Column(name = "created_on", nullable = false, columnDefinition = "TIMESTAMP")
    public LocalDateTime createdOn;
 
