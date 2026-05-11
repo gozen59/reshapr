@@ -32,13 +32,19 @@ services:
       - RESHAPR_ADMIN_PASSWORD=password
       - RESHAPR_ADMIN_EMAIL=reshapr@example.com
       - RESHAPR_DEFAULT_GATEWAY_TOKENS=my-super-secret-token-xyz
+      # Enable external OIDC ID provider authentication
+      #- RESHAPR_AUTHENTICATION_IDP_ENABLED=true
+      #- RESHAPR_AUTHENTICATION_IDP_URL=http://localhost:8888/realms/3rdparty/protocol/openid-connect/auth
+      #- RESHAPR_AUTHENTICATION_IDP_TOKEN_URL=http://host.docker.internal:8888/realms/3rdparty/protocol/openid-connect/token
+      #- RESHAPR_AUTHENTICATION_IDP_CLIENT_ID=reshapr-ctrl
+      #- RESHAPR_AUTHENTICATION_IDP_CLIENT_SECRET=my-3rdparty-idp-client-secret
       # Enable debug logging for the control plane to help with troubleshooting
       #- QUARKUS_LOG_CONSOLE_LEVEL=DEBUG
       #- QUARKUS_LOG_CATEGORY__IO_RESHAPR_CTRL__LEVEL=DEBUG
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5555/q/health/ready" ]
-      start_period: 10s
-      interval: 10s
+      start_period: 5s
+      interval: 5s
       timeout: 2s
       retries: 3
 
@@ -68,6 +74,6 @@ services:
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:7777/q/health/ready" ]
       start_period: 5s
-      interval: 10s
+      interval: 5s
       timeout: 2s
       retries: 3
