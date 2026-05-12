@@ -972,13 +972,16 @@ components:
       type: object
       properties:
         clientId:
-          description: The OAUth2 client identifier
+          description: The OAuth2 client identifier
           type: string
         authorizationEndpoint:
-          description: The authorization endpoint of OAUth2 auth server
+          description: The authorization endpoint of OAuth2 auth server
           type: string
         tokenEndpoint:
-          description: The token exchange endpoint of the OAuth2 authroization server
+          description: The token exchange endpoint of the OAuth2 authorization server
+          type: string
+        clientSecret:
+          description: The OAuth2 client secret if needed
           type: string
     GatewayGroup:
       description: A GatewayGroup in Reshapr control plane
