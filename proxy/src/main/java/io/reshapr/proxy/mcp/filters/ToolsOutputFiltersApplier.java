@@ -1,0 +1,234 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.proxy.mcp.filters;
+
+import io.reshapr.proxy.mcp.WorkCache;
+import io.reshapr.proxy.registry.ArtifactEntry;
+import io.reshapr.proxy.registry.ArtifactEntryType;
+import io.reshapr.proxy.registry.ServiceEntry;
+
+import io.github.microcks.util.ObjectMapperFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.flipkart.zjsonpatch.JsonPatch;
+import jakarta.annotation.Nullable;
+import org.jboss.logging.Logger;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * Applies output filters defined in a ToolsOutputFilters artifact to tool call responses.
+ * This slims down API payloads before they reach LLMs by retaining specific branches
+ * and/or applying JSON Patch (RFC 6902) operations.
+ * @author laurent
+ */
+public class ToolsOutputFiltersApplier {
+
+   private static final Logger logger = Logger.getLogger(ToolsOutputFiltersApplier.class);
+
+   private static final String CACHE_KEYS_PREFIX = "tof-";
+
+   private static final ObjectMapper YAML_MAPPER = ObjectMapperFactory.getYamlObjectMapper();
+   private static final ObjectMapper JSON_MAPPER = ObjectMapperFactory.getJsonObjectMapper();
+
+   private final ServiceEntry service;
+   private final List<ArtifactEntry> attachedArtifacts;
+   private final WorkCache workCache;
+
+   /**
+    * Creates a ToolsOutputFilterApplier for the given service and attached artifacts.
+    * @param service the service entry
+    * @param attachedArtifacts the list of attached artifacts, or null if none
+    * @param workCache the work cache to use for caching
+    */
+   public ToolsOutputFiltersApplier(ServiceEntry service, @Nullable List<ArtifactEntry> attachedArtifacts,
+                                    WorkCache workCache) {
+      this.service = service;
+      this.attachedArtifacts = attachedArtifacts;
+      this.workCache = workCache;
+   }
+
+   /**
+    * Apply the output filter (if any) for the given tool name on the response content.
+    * @param toolName the name of the tool that was called
+    * @param responseContent the raw response content string
+    * @return the filtered response content, or the original content if no filter applies
+    */
+   public String applyFilter(String toolName, String responseContent) {
+      JsonNode filterNode = getFilterForTool(toolName);
+      if (filterNode == null) {
+         return responseContent;
+      }
+
+      try {
+         JsonNode responseNode = JSON_MAPPER.readTree(responseContent);
+         if (responseNode == null) {
+            return responseContent;
+         }
+
+         // First apply jsonRetain if present.
+         JsonNode retainNode = filterNode.get("jsonRetain");
+         if (retainNode != null && retainNode.isArray()) {
+            responseNode = applyRetain(responseNode, retainNode);
+         }
+
+         // Then apply jsonPatches if present.
+         JsonNode patchesNode = filterNode.get("jsonPatches");
+         if (patchesNode != null && patchesNode.isArray()) {
+            responseNode = JsonPatch.apply(patchesNode, responseNode);
+         }
+
+         return JSON_MAPPER.writeValueAsString(responseNode);
+      } catch (Exception e) {
+         logger.warnf("Cannot apply output filter for tool '%s', returning original response: %s", toolName, e.getMessage());
+         return responseContent;
+      }
+   }
+
+   /**
+    * Check if there are any output filters available for the service.
+    * @return true if a ToolsOutputFilters artifact is attached to this service
+    */
+   public boolean hasFilters() {
+      return getFiltersNode() != null;
+   }
+
+   /** Get the filter definition node for a specific tool. */
+   private @Nullable JsonNode getFilterForTool(String toolName) {
+      JsonNode filtersNode = getFiltersNode();
+      if (filtersNode == null || !filtersNode.isObject()) {
+         return null;
+      }
+      JsonNode toolFilter = filtersNode.get(toolName);
+      return toolFilter != null && toolFilter.isObject() ? toolFilter : null;
+   }
+
+   /** Retrieve the `filters` object node from the ToolsOutputFilters kind yaml attachment. */
+   private @Nullable JsonNode getFiltersNode() {
+      String major = String.valueOf(service.hashCode());
+      if (workCache.get(major, CACHE_KEYS_PREFIX) instanceof JsonNode filtersNode) {
+         logger.tracef("Got a cached value of ToolsOutputFilters JsonNode for service '%s'", service.id());
+         return filtersNode;
+      }
+      if (attachedArtifacts == null || attachedArtifacts.isEmpty()) {
+         return null;
+      }
+
+      Optional<ArtifactEntry> outputFiltersArtifact = attachedArtifacts.stream()
+            .filter(artifactEntry -> ArtifactEntryType.RESHAPR_TOOLS_OUTPUT_FILTERS.equals(artifactEntry.type()))
+            .findFirst();
+      if (outputFiltersArtifact.isEmpty()) {
+         return null;
+      }
+
+      try {
+         JsonNode artifactNode = YAML_MAPPER.readTree(outputFiltersArtifact.get().content());
+         JsonNode filtersNode = artifactNode.get("filters");
+         workCache.set(major, CACHE_KEYS_PREFIX, filtersNode);
+         return filtersNode;
+      } catch (Exception e) {
+         logger.errorf(e, "Cannot read Reshapr ToolsOutputFilters artifact for service '%s'", service.id());
+         return null;
+      }
+   }
+
+   /**
+    * Apply the retain operation: keep only the branches specified by JSON Pointer paths.
+    * If the response is an array, the retain is applied to each element.
+    */
+   private JsonNode applyRetain(JsonNode responseNode, JsonNode retainNode) {
+      // Collect the set of pointer paths to retain.
+      Set<String> retainPaths = new HashSet<>();
+      for (JsonNode pathNode : retainNode) {
+         retainPaths.add(pathNode.asText());
+      }
+
+      if (responseNode.isObject()) {
+         return retainFields((ObjectNode) responseNode, retainPaths);
+      } else if (responseNode.isArray()) {
+         ArrayNode result = JSON_MAPPER.createArrayNode();
+         for (JsonNode element : responseNode) {
+            if (element.isObject()) {
+               result.add(retainFields((ObjectNode) element, retainPaths));
+            } else {
+               result.add(element);
+            }
+         }
+         return result;
+      }
+      return responseNode;
+   }
+
+   /**
+    * Retain only the fields matching the given JSON Pointer paths in an object node.
+    * A path like "/userInfo" retains the entire "userInfo" subtree.
+    * A path like "/userInfo/name" retains only "name" within "userInfo".
+    */
+   private ObjectNode retainFields(ObjectNode objectNode, Set<String> retainPaths) {
+      ObjectNode result = JSON_MAPPER.createObjectNode();
+
+      for (String path : retainPaths) {
+         // Remove leading slash and split by slash.
+         String[] segments = path.substring(1).split("/");
+         copyPath(objectNode, result, segments, 0);
+      }
+
+      return result;
+   }
+
+   /** Recursively copy a path from source to result. */
+   private void copyPath(JsonNode source, ObjectNode result, String[] segments, int index) {
+      if (source == null || index >= segments.length) {
+         return;
+      }
+      String segment = segments[index];
+      JsonNode child = source.get(segment);
+      if (child == null) {
+         return;
+      }
+
+      if (index == segments.length - 1) {
+         // Last segment: copy the whole subtree.
+         result.set(segment, child.deepCopy());
+      } else {
+         // Intermediate segment: recurse into the child.
+         if (child.isObject()) {
+            ObjectNode nestedResult = result.has(segment) && result.get(segment).isObject()
+                  ? (ObjectNode) result.get(segment) : JSON_MAPPER.createObjectNode();
+            copyPath(child, nestedResult, segments, index + 1);
+            result.set(segment, nestedResult);
+         } else if (child.isArray()) {
+            ArrayNode arrayResult = JSON_MAPPER.createArrayNode();
+            for (JsonNode element : child) {
+               if (element.isObject()) {
+                  ObjectNode elementResult = JSON_MAPPER.createObjectNode();
+                  copyPath(element, elementResult, segments, index + 1);
+                  arrayResult.add(elementResult);
+               } else {
+                  arrayResult.add(element);
+               }
+            }
+            result.set(segment, arrayResult);
+         }
+      }
+   }
+}

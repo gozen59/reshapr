@@ -17,6 +17,7 @@
     <mapstruct.version>1.6.3</mapstruct.version>
     <nimbus-jose-jwt.version>10.3.1</nimbus-jose-jwt.version>
     <quarkus-web-bundler.version>1.9.3</quarkus-web-bundler.version>
+    <zjsonpatch.version>0.6.2</zjsonpatch.version>
   </properties>
 
   <dependencies>
@@ -127,6 +128,12 @@
       <artifactId>bootstrap</artifactId>
       <version>5.3.8</version>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.vishwakarma</groupId>
+      <artifactId>zjsonpatch</artifactId>
+      <version>${zjsonpatch.version}</version>
     </dependency>
 
     <dependency>

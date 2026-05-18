@@ -23,6 +23,7 @@ import io.reshapr.proxy.mcp.converters.GrpcMcpToolConverter;
 import io.reshapr.proxy.mcp.converters.McpToolConverter;
 import io.reshapr.proxy.mcp.converters.OpenAPIMcpToolConverter;
 import io.reshapr.proxy.mcp.converters.ReshaprCustomToolsMcpToolConverter;
+import io.reshapr.proxy.mcp.filters.ToolsOutputFiltersApplier;
 import io.reshapr.proxy.mcp.state.ElicitationStore;
 import io.reshapr.proxy.context.SessionInfo;
 import io.reshapr.proxy.mcp.state.SessionStore;
@@ -432,7 +433,15 @@ public class McpController {
       // We copy headers before calling because original map is immutable.
       var response = converter.getCallResponse(callOperation, configuration, toolRequest, new HashMap<>(headers));
 
-      return toMcpHandlerResult(request, new McpSchema.CallToolResult(List.of(new McpSchema.TextContent(response.content())),
+      String content = response.content();
+
+      // Apply output filters if a ToolsOutputFilters artifact is attached.
+      ToolsOutputFiltersApplier filterApplier = buildToolsOutputFilterApplier(service);
+      if (filterApplier != null) {
+         content = filterApplier.applyFilter(toolRequest.name(), content);
+      }
+
+      return toMcpHandlerResult(request, new McpSchema.CallToolResult(List.of(new McpSchema.TextContent(content)),
             response.isFault()));
    }
 
@@ -491,6 +500,15 @@ public class McpController {
                workCache, converter);
       }
       return converter;
+   }
+
+   @Nullable
+   private ToolsOutputFiltersApplier buildToolsOutputFilterApplier(ServiceEntry service) {
+      if (gatewayRegistry.getAttachedArtifacts(service) != null && gatewayRegistry.getAttachedArtifacts(service).stream()
+            .anyMatch(artifactEntry -> ArtifactEntryType.RESHAPR_TOOLS_OUTPUT_FILTERS.equals(artifactEntry.type()))) {
+         return new ToolsOutputFiltersApplier(service, gatewayRegistry.getAttachedArtifacts(service), workCache);
+      }
+      return null;
    }
 
    private static boolean isExposedOperation(ConfigurationEntry configuration, OperationEntry operation) {

@@ -54,10 +54,11 @@ artifactCommand.command('list')
         Context.put('artifacts', data);
 
         const longestName = longestArtifactName(data); // +1 for padding
+        const longestType = longestArtifactType(data); // +1 for padding
 
-        Logger.log(`${'ID'.padEnd(13, ' ')}  ${'NAME'.padEnd(longestName, ' ')} ${'TYPE'.padEnd(20, ' ')} MAIN`);
+        Logger.log(`${'ID'.padEnd(13, ' ')}  ${'NAME'.padEnd(longestName, ' ')} ${'TYPE'.padEnd(longestType, ' ')} MAIN`);
         data.forEach((artifact: any) => {
-          Logger.log(`${artifact.id}  ${artifact.name.padEnd(longestName, ' ')} ${artifact.type.padEnd(20, ' ')} ${artifact.mainArtifact ? 'Yes' : 'No'}`);
+          Logger.log(`${artifact.id}  ${artifact.name.padEnd(longestName, ' ')} ${artifact.type.padEnd(longestType, ' ')} ${artifact.mainArtifact ? 'Yes' : 'No'}`);
         });
       }
     }
@@ -67,6 +68,12 @@ function longestArtifactName(artifacts: any[]) {
   return artifacts.reduce((max, artifact) => {
     return Math.max(max, artifact.name.length + 1);
   }, 0);
+}
+
+function longestArtifactType(artifacts: any[]) {
+    return artifacts.reduce((max, artifact) => {
+        return Math.max(max, artifact.type.length + 1);
+    }, 0);
 }
 
 /** Get artifact by ID */
