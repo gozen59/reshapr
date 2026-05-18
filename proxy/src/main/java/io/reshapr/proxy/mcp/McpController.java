@@ -545,11 +545,10 @@ public class McpController {
          // Determine outcome and error code from the result.
          String outcome = AuditEvent.OUTCOME_SUCCESS;
          Integer errorCode = null;
-         if (result.isJSONRPCResponse() && result.message() instanceof McpSchema.JSONRPCResponse response) {
-            if (response.error() != null) {
-               outcome = AuditEvent.OUTCOME_FAILURE;
-               errorCode = response.error().code();
-            }
+         if (result.isJSONRPCResponse() && result.message() instanceof McpSchema.JSONRPCResponse response
+               && response.error() != null) {
+            outcome = AuditEvent.OUTCOME_FAILURE;
+            errorCode = response.error().code();
          }
 
          // Compute response content size.
