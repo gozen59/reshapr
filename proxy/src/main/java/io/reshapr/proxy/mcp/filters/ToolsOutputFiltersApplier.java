@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.zjsonpatch.JsonPatch;
+import dev.toonformat.jtoon.JToon;
 import jakarta.annotation.Nullable;
 import org.jboss.logging.Logger;
 
@@ -97,7 +98,15 @@ public class ToolsOutputFiltersApplier {
             responseNode = JsonPatch.apply(patchesNode, responseNode);
          }
 
-         return JSON_MAPPER.writeValueAsString(responseNode);
+         String result = JSON_MAPPER.writeValueAsString(responseNode);
+
+         // Finally, convert to Toon format if requested.
+         JsonNode convertToToonNode = filterNode.get("convertToToon");
+         if (convertToToonNode != null && convertToToonNode.asBoolean()) {
+            result = JToon.encodeJson(result);
+         }
+
+         return result;
       } catch (Exception e) {
          logger.warnf("Cannot apply output filter for tool '%s', returning original response: %s", toolName, e.getMessage());
          return responseContent;

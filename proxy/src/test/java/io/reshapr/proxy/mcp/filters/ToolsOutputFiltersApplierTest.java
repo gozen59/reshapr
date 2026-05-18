@@ -213,6 +213,47 @@ class ToolsOutputFiltersApplierTest {
    }
 
    @Test
+   void testConvertToToon() {
+      String artifactContent = """
+            apiVersion: reshapr.io/v1alpha1
+            kind: ToolsOutputFilters
+            service:
+              name: Test API
+              version: '1.0.0'
+            filters:
+              getToon:
+                convertToToon: true
+              getRetainAndToon:
+                jsonRetain:
+                  - /name
+                  - /age
+                convertToToon: true
+            """;
+      ServiceEntry service = new ServiceEntry("svc-1", "org-1", "Test API", "1.0.0", "REST", null);
+      ArtifactEntry artifact = new ArtifactEntry("art-1", "filters.yaml", null,
+            ArtifactEntryType.RESHAPR_TOOLS_OUTPUT_FILTERS, false, artifactContent);
+      WorkCache cache = new WorkCache(100);
+      ToolsOutputFiltersApplier applier = new ToolsOutputFiltersApplier(service, List.of(artifact), cache);
+
+      // Test simple conversion to Toon.
+      String response = "{\"name\":\"John\",\"age\":30}";
+      String filtered = applier.applyFilter("getToon", response);
+
+      // Toon format should not be JSON anymore.
+      assertNotEquals(response, filtered);
+      assertFalse(filtered.startsWith("{"));
+
+      // Test retain + convertToToon combined.
+      String response2 = "{\"name\":\"John\",\"age\":30,\"password\":\"secret\"}";
+      String filtered2 = applier.applyFilter("getRetainAndToon", response2);
+
+      // Should not contain password (filtered by retain) and should be in Toon format.
+      assertFalse(filtered2.startsWith("{"));
+      assertFalse(filtered2.contains("password"));
+      assertTrue(filtered2.contains("John"));
+   }
+
+   @Test
    void testNoFiltersWhenNoArtifacts() {
       ServiceEntry service = new ServiceEntry("svc-1", "org-1", "Test API", "1.0.0", "REST", null);
       WorkCache cache = new WorkCache(100);
