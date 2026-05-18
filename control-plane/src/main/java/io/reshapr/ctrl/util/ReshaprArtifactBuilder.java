@@ -57,13 +57,15 @@ public class ReshaprArtifactBuilder {
    private static final Map<String, String> KIND_VERSIONS_SCHEMAS = Map.of(
          "Prompts-reshapr.io/v1alpha1", "/schemas/Prompts-v1alpha1-schema.json",
          "CustomTools-reshapr.io/v1alpha1", "/schemas/CustomTools-v1alpha1-schema.json",
-         "Resources-reshapr.io/v1alpha1", "/schemas/Resources-v1alpha1-schema.json"
+         "Resources-reshapr.io/v1alpha1", "/schemas/Resources-v1alpha1-schema.json",
+         "ToolsOutputFilters-reshapr.io/v1alpha1", "/schemas/ToolsOutputFilters-v1alpha1-schema.json"
    );
 
    private static final Map<String, ArtifactType> KIND_VERSIONS_TYPES = Map.of(
          "Prompts-reshapr.io/v1alpha1", ArtifactType.RESHAPR_PROMPTS,
          "CustomTools-reshapr.io/v1alpha1", ArtifactType.RESHAPR_CUSTOM_TOOLS,
-         "Resources-reshapr.io/v1alpha1", ArtifactType.RESHAPR_RESOURCES
+         "Resources-reshapr.io/v1alpha1", ArtifactType.RESHAPR_RESOURCES,
+         "ToolsOutputFilters-reshapr.io/v1alpha1", ArtifactType.RESHAPR_TOOLS_OUTPUT_FILTERS
    );
 
    private static final ObjectMapper SCHEMA_MAPPER = new ObjectMapper()

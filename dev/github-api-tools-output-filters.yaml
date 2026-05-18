@@ -1,0 +1,22 @@
+apiVersion: reshapr.io/v1alpha1
+kind: ToolsOutputFilters
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+filters:
+  get_user_with_latest_followers:
+    retain:
+      - /data/user/name
+      - /data/user/login
+      - /data/user/bio
+      - /data/user/bioHTML
+      - /data/user/company
+      - /data/user/companyHTML
+      - /data/user/avatarUrl
+      - /data/user/followers
+    patches:
+      - op: add
+        path: /data/user/location
+        value: Worldwide
+      - op: remove
+        path: /data/user/followers/nodes

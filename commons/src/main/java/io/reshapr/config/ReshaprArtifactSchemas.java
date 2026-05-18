@@ -22,11 +22,14 @@ package io.reshapr.config;
 public interface ReshaprArtifactSchemas {
 
    String PROMPTS_KIND = "Prompts";
-   String PROMPTS_VERSION_V1ALPHA1 =  "reshapr.io/v1alpha1";
+   String PROMPTS_VERSION_V1ALPHA1 = "reshapr.io/v1alpha1";
 
    String RESOURCES_KIND = "Resources";
-   String RESOURCES_VERSION_V1ALPHA1 =  "reshapr.io/v1alpha1";
+   String RESOURCES_VERSION_V1ALPHA1 = "reshapr.io/v1alpha1";
 
    String CUSTOM_TOOLS_KIND = "CustomTools";
-   String CUSTOM_TOOLS_VERSION_V1ALPHA1 =  "reshapr.io/v1alpha1";
+   String CUSTOM_TOOLS_VERSION_V1ALPHA1 = "reshapr.io/v1alpha1";
+
+   String TOOLS_OUTPUT_FILTERS_KIND = "ToolsOutputFilters";
+   String TOOLS_OUTPUT_FILTERS_VERSION_V1ALPHA1 = "reshapr.io/v1alpha1";
 }

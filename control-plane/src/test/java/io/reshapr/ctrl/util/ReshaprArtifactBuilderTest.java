@@ -229,4 +229,41 @@ class ReshaprArtifactBuilderTest {
       assertEquals("Repository Service", artifactWithServiceRef.serviceName());
       assertEquals("1.0.0", artifactWithServiceRef.serviceVersion());
    }
+
+   @Test
+   void testNonConformantToolsOutputFilters() {
+      URL filtersURL = getClass().getResource("/io/reshapr/ctrl/util/tools-output-filters-invalid.yaml");
+      File filtersFile = new File(filtersURL.getFile());
+
+      try {
+         ReshaprArtifactBuilder.parseArtifact("tools-output-filters-invalid.yaml", filtersFile);
+      } catch (ReshaprArtifactException mae) {
+         assertEquals("Artifact content is not valid against schema for kind 'ToolsOutputFilters' and version 'reshapr.io/v1alpha1'",
+               mae.getMessage());
+         return;
+      }
+      fail("An exception should have been thrown for non-conformant tools output filters.");
+   }
+
+   @Test
+   void testValidParsingToolsOutputFilters() {
+      URL filtersURL = getClass().getResource("/io/reshapr/ctrl/util/tools-output-filters-valid.yaml");
+      File filtersFile = new File(filtersURL.getFile());
+
+      ReshaprArtifactBuilder.ArtifactWithServiceRef artifactWithServiceRef = null;
+      try {
+         artifactWithServiceRef = ReshaprArtifactBuilder.parseArtifact("tools-output-filters-valid.yaml", filtersFile);
+      } catch (Exception e) {
+         fail("Exception should not have been thrown: " + e.getMessage());
+      }
+
+      assertNotNull(artifactWithServiceRef);
+
+      Artifact artifact = artifactWithServiceRef.artifact();
+      assertEquals(ArtifactType.RESHAPR_TOOLS_OUTPUT_FILTERS, artifact.type);
+      assertEquals("tools-output-filters-valid.yaml", artifact.name);
+      assertEquals("tools-output-filters-valid.yaml", artifact.sourceArtifact);
+      assertEquals("Pastry API", artifactWithServiceRef.serviceName());
+      assertEquals("2.0.0", artifactWithServiceRef.serviceVersion());
+   }
 }

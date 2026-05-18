@@ -1,0 +1,8 @@
+apiVersion: reshapr.io/v1alpha1
+kind: ToolsOutputFilters
+service:
+  name: Pastry API
+  version: '2.0.0'
+filters:
+  listPastries:
+    description: "This filter has neither jsonRetain nor jsonPatches - invalid"

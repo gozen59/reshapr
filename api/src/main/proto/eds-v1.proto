@@ -124,6 +124,7 @@ enum ArtifactType {
   RESHAPR_PROMPTS = 6; // Reshapr prompts
   RESHAPR_CUSTOM_TOOLS = 7; // Reshapr custom tools
   RESHAPR_RESOURCES = 8; // Reshapr resources
+  RESHAPR_TOOLS_OUTPUT_FILTERS = 9; // Reshapr tools output filters
 }
 
 // Artifact represents an artifact associated with a service.

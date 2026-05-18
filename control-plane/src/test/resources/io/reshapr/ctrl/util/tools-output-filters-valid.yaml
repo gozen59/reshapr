@@ -1,0 +1,20 @@
+apiVersion: reshapr.io/v1alpha1
+kind: ToolsOutputFilters
+service:
+  name: Pastry API
+  version: '2.0.0'
+filters:
+  listPastries:
+    jsonRetain:
+      - /name
+      - /price
+      - /size
+  getPastry:
+    jsonPatches:
+      - op: remove
+        path: /internalId
+      - op: remove
+        path: /metadata/createdBy
+      - op: replace
+        path: /status
+        value: "published"
