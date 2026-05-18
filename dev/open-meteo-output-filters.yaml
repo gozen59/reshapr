@@ -1,0 +1,8 @@
+apiVersion: reshapr.io/v1alpha1
+kind: ToolsOutputFilters
+service:
+  name: Open-Meteo APIs
+  version: '1.0'
+filters:
+  get_v1_forecast:
+    convertToToon: true

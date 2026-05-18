@@ -18,6 +18,7 @@
     <nimbus-jose-jwt.version>10.3.1</nimbus-jose-jwt.version>
     <quarkus-web-bundler.version>1.9.3</quarkus-web-bundler.version>
     <zjsonpatch.version>0.6.2</zjsonpatch.version>
+    <jtoon.version>1.0.9</jtoon.version>
   </properties>
 
   <dependencies>
@@ -134,6 +135,11 @@
       <groupId>io.github.vishwakarma</groupId>
       <artifactId>zjsonpatch</artifactId>
       <version>${zjsonpatch.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.toonformat</groupId>
+      <artifactId>jtoon</artifactId>
+      <version>${jtoon.version}</version>
     </dependency>
 
     <dependency>
