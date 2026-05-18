@@ -57,6 +57,7 @@ public class AuditLogger {
    private static final AttributeKey<String> EVENT_ACTION = AttributeKey.stringKey("event.action");
    private static final AttributeKey<String> EVENT_OUTCOME = AttributeKey.stringKey("event.outcome");
    private static final AttributeKey<Long> EVENT_DURATION = AttributeKey.longKey("event.duration");
+   private static final AttributeKey<String> EVENT_REASON = AttributeKey.stringKey("event.reason");
 
    private static final AttributeKey<String> SERVICE_NAME = AttributeKey.stringKey("service.name");
    private static final AttributeKey<String> SERVICE_VERSION = AttributeKey.stringKey("service.version");
@@ -72,6 +73,9 @@ public class AuditLogger {
    private static final AttributeKey<String> USER_ID = AttributeKey.stringKey("user.id");
 
    private static final AttributeKey<String> TRACE_ID = AttributeKey.stringKey("trace.id");
+   private static final AttributeKey<String> SERVICE_ID = AttributeKey.stringKey("service.id");
+
+   private static final AttributeKey<Long> HTTP_STATUS = AttributeKey.longKey("http.response.status_code");
 
    @Nullable
    private final io.opentelemetry.api.logs.Logger otelLogger;
@@ -154,7 +158,52 @@ public class AuditLogger {
       if (event.traceId() != null) {
          ab.put(TRACE_ID, event.traceId());
       }
+      return ab.build();
+   }
 
+   /**
+    * Emit an audit log record for an authentication failure.
+    * @param event The auth failure event describing the failed authentication attempt.
+    */
+   public void logAuthFailure(AuthenticationFailureAuditEvent event) {
+      if (otelLogger == null) {
+         return;
+      }
+      LogRecordBuilder builder = otelLogger.logRecordBuilder()
+            .setTimestamp(Instant.now())
+            .setSeverity(Severity.WARN)
+            .setSeverityText("WARN")
+            .setBody(buildAuthFailureBody(event))
+            .setAllAttributes(buildAuthFailureAttributes(event));
+
+      builder.emit();
+   }
+
+   private String buildAuthFailureBody(AuthenticationFailureAuditEvent event) {
+      return "MCP audit: authentication failure on " + event.serviceName() + ":" + event.serviceVersion()
+            + ", reason=" + event.reason()
+            + ", http_status=" + event.httpStatus()
+            + (event.sourceIp() != null ? ", source=" + event.sourceIp() : "");
+   }
+
+   private Attributes buildAuthFailureAttributes(AuthenticationFailureAuditEvent event) {
+      AttributesBuilder ab = Attributes.builder()
+            .put(LOG_TYPE, "audit")
+            .put(EVENT_ACTION, "authentication")
+            .put(EVENT_OUTCOME, AuditEvent.OUTCOME_FAILURE)
+            .put(EVENT_REASON, event.reason())
+            .put(HTTP_STATUS, (long) event.httpStatus())
+            .put(SERVICE_ID, event.serviceId())
+            .put(SERVICE_NAME, event.serviceName())
+            .put(SERVICE_VERSION, event.serviceVersion())
+            .put(ORGANIZATION_ID, event.organizationId());
+
+      if (event.sourceIp() != null) {
+         ab.put(SOURCE_IP, event.sourceIp());
+      }
+      if (event.traceId() != null) {
+         ab.put(TRACE_ID, event.traceId());
+      }
       return ab.build();
    }
 }

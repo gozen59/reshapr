@@ -15,6 +15,8 @@
  */
 package io.reshapr.proxy.security;
 
+import io.reshapr.proxy.audit.AuditLogger;
+import io.reshapr.proxy.audit.AuthenticationFailureAuditEvent;
 import io.reshapr.proxy.registry.ConfigurationEntry;
 import io.reshapr.proxy.registry.GatewayRegistry;
 import io.reshapr.proxy.registry.OAuth2ConfigurationEntry;
@@ -33,8 +35,11 @@ import com.nimbusds.jwt.proc.BadJWTException;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import io.opentelemetry.api.trace.Span;
+import io.vertx.core.http.HttpServerRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
@@ -82,12 +87,17 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
    );
 
    private final GatewayRegistry gatewayRegistry;
+   private final AuditLogger auditLogger;
+
+   @Context
+   HttpServerRequest serverRequest;
 
    @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
-   public SecureEndpointFilter(GatewayRegistry gatewayRegistry) {
+   public SecureEndpointFilter(GatewayRegistry gatewayRegistry, AuditLogger auditLogger) {
       this.gatewayRegistry = gatewayRegistry;
+      this.auditLogger = auditLogger;
    }
 
    @Override
@@ -118,7 +128,7 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
             // Do the security checks if any.
             if (isSecuredService(configuration)) {
                if (isSecuredWithAPIKey(configuration)) {
-                  checkAPIKeyValidity(configuration, ctx);
+                  checkAPIKeyValidity(service, configuration, ctx);
                } else if (isSecuredWithOAuth2(configuration)) {
                   checkOAuth2Validity(service, configuration, ctx);
                }
@@ -140,12 +150,13 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
       return (configuration.oauth2Configuration() != null && !configuration.oauth2Configuration().authorizationServers().isEmpty());
    }
 
-   private void checkAPIKeyValidity(ConfigurationEntry configuration, ContainerRequestContext ctx) {
+   private void checkAPIKeyValidity(ServiceEntry service, ConfigurationEntry configuration, ContainerRequestContext ctx) {
       // Check for API key in headers.
       String apiKey = ctx.getHeaderString(API_KEY_HEADER);
       boolean valid =  configuration.apiKey() != null && configuration.apiKey().equals(apiKey);
       if (!valid) {
          logger.warnf("Invalid or missing API key for configuration with ID: '%s'", configuration.id());
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_INVALID_API_KEY, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
       }
    }
@@ -154,6 +165,7 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
       String authorizationHeader = ctx.getHeaderString(HttpHeaders.AUTHORIZATION);
       if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
          logger.warnf("Missing or invalid Authorization header for configuration with ID: '%s'", configuration.id());
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MISSING_BEARER, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED)
                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer resource_metadata=https://" + fqdns.getFirst() + "/.well-known/oauth-protected-resource" + ctx.getUriInfo().getPath())
                .build());
@@ -198,11 +210,13 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
       } catch (ParseException | BadJOSEException e) {
          // Malformed token.
          logger.warnf("Bad OAuth2 token received: %s", e.getMessage());
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MALFORMED_TOKEN, Response.Status.BAD_REQUEST.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.BAD_REQUEST).build());
          return;
       } catch (JOSEException e) {
          // Key sourcing failed or another internal exception.
          logger.warnf("Invalid OAuth2 token received: %s", e.getMessage());
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_INVALID_TOKEN, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
          return;
       }
@@ -212,12 +226,14 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
          String resource = claimsSet.getClaimAsString("resource");
          if (resource != null && !resource.equalsIgnoreCase("https://" + fqdns.getFirst() + ctx.getUriInfo().getPath())) {
             logger.warnf("Invalid OAuth2 token received, resource claim does not match '%s'", "https://" + fqdns.getFirst() + ctx.getUriInfo().getPath());
+            emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_FORBIDDEN_RESOURCE, Response.Status.FORBIDDEN.getStatusCode(), ctx);
             ctx.abortWith(Response.status(Response.Status.FORBIDDEN).build());
             return;
          }
       } catch (ParseException pe) {
          // Malformed token.
          logger.warnf("Bad OAuth2 token received, resource claim cannot be parsed as String", pe);
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MALFORMED_TOKEN, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
          return;
       }
@@ -227,12 +243,14 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
          String serviceID = claimsSet.getClaimAsString("serviceId");
          if (serviceID != null && !serviceID.equals(service.id())) {
             logger.warnf("Invalid OAuth2 token received, serviceId claim does not match service ID '%s'", service.id());
+            emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_FORBIDDEN_SERVICE, Response.Status.FORBIDDEN.getStatusCode(), ctx);
             ctx.abortWith(Response.status(Response.Status.FORBIDDEN).build());
             return;
          }
       } catch (ParseException pe) {
          // Malformed token.
          logger.warnf("Bad OAuth2 token received, serviceId claim cannot be parsed as String", pe);
+         emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MALFORMED_TOKEN, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
          ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
          return;
       }
@@ -257,18 +275,21 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
          } catch (ParseException pe) {
             // Malformed token.
             logger.warnf("Bad OAuth2 token received, scope claim cannot be parsed as String or List<String>", pe);
+            emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MALFORMED_TOKEN, Response.Status.UNAUTHORIZED.getStatusCode(), ctx);
             ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
             return;
          }
 
          if (tokenScopes == null || tokenScopes.isEmpty()) {
             logger.warnf("Invalid OAuth2 token received, no scope claim found but expected: '%s'", String.join(" ", oauth2Config.scopes()));
+            emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MISSING_SCOPE, Response.Status.FORBIDDEN.getStatusCode(), ctx);
             ctx.abortWith(Response.status(Response.Status.FORBIDDEN).build());
             return;
          }
           for (String expectedScope : oauth2Config.scopes()) {
              if (!tokenScopes.contains(expectedScope)) {
                 logger.warnf("Invalid OAuth2 token received, scope claim does not contain expected scope: '%s'", expectedScope);
+                emitAuthenticationFailureAuditEvent(service, configuration, AuthenticationFailureAuditEvent.REASON_MISSING_SCOPE, Response.Status.FORBIDDEN.getStatusCode(), ctx);
                 ctx.abortWith(Response.status(Response.Status.FORBIDDEN).build());
                 return;
              }
@@ -300,5 +321,40 @@ public class SecureEndpointFilter implements ContainerRequestFilter {
             throw new BadJWTException("JWT issuer '" + issuer + "' does not match any configured authorization server");
          }
       }
+   }
+
+   /**
+    * Emit an audit event for authentication failure if audit is enabled on the configuration.
+    */
+   private void emitAuthenticationFailureAuditEvent(ServiceEntry service, ConfigurationEntry configuration,
+                                                    String reason, int httpStatus, ContainerRequestContext ctx) {
+      if (!configuration.audit()) {
+         return;
+      }
+
+      // Capture trace context now — the span is bound to the current thread and won't be
+      // available on the virtual thread used for async emission.
+      Span currentSpan = Span.current();
+      String traceId = currentSpan.getSpanContext().isValid() ? currentSpan.getSpanContext().getTraceId() : null;
+
+      // Extract source IP (best effort from X-Forwarded-For, X-Real-IP, or remote address).
+      String sourceIp = ctx.getHeaderString("X-Forwarded-For");
+      if (sourceIp == null) {
+         sourceIp = ctx.getHeaderString("X-Real-IP");
+      }
+      if (sourceIp == null && serverRequest != null && serverRequest.remoteAddress() != null) {
+         sourceIp = serverRequest.remoteAddress().host();
+      }
+
+      final String finalSourceIp = sourceIp;
+
+      // Execute audit event sending asynchronously.
+      Thread.startVirtualThread(() -> {
+         AuthenticationFailureAuditEvent event = new AuthenticationFailureAuditEvent(
+               reason, service.id(), service.name(), service.version(), service.organizationId(),
+               finalSourceIp, httpStatus, traceId
+         );
+         auditLogger.logAuthFailure(event);
+      });
    }
 }
