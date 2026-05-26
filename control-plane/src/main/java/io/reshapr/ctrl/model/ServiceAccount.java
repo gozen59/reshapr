@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * A Service Account identity that is allowed to impersonate user & organization for to access Reshapr
+ * A Service Account identity that is allowed to impersonate user &amp; organization for to access Reshapr
  * control plane REST APIs.
  * @author laurent
  */
