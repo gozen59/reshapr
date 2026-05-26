@@ -303,6 +303,8 @@ paths:
     parameters:
     - name: id
       description: The Service unique identifier
+      schema:
+        type: string
       in: path
       required: true
   /v1/configurationPlans/{id}:
@@ -459,6 +461,8 @@ paths:
     parameters:
     - name: id
       description: The unique identifier of the Secret to manage
+      schema:
+        type: string
       in: path
       required: true
   /v1/expositions/active/{id}:
@@ -592,6 +596,8 @@ paths:
     parameters:
     - name: id
       description: The unique identifier of ApiToken to manage
+      schema:
+        type: string
       in: path
       required: true
 components:
