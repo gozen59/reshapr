@@ -88,9 +88,6 @@ public class ProxyService {
       // Manage the Forwarded and X-Forwarded-For headers.
       HeadersUtil.addForwardingHeaders(requestHeaders);
 
-      // Also inject OpenTelemetry tracing headers.
-      HeadersUtil.injectTracingHeaders(headers);
-
       // If the configuration has a backend secret, manage security headers.
       if (configuration.backendSecret() != null) {
          manageSecurityHeaders(configuration.backendSecret(), requestHeaders);
@@ -103,9 +100,8 @@ public class ProxyService {
       }
 
       try {
-         // Apply headers to request builder before calling backend.
-         requestHeaders.forEach((key, values) -> values.forEach(value -> requestBuilder.header(key, value)));
-         HttpResponse<byte[]> response = doCallBackend(requestBuilder, externalUrl.toString());
+         // Call the backend.
+         HttpResponse<byte[]> response = doCallBackend(requestHeaders, requestBuilder, externalUrl.toString());
 
          if (logger.isDebugEnabled()) {
             logger.debugf("Proxy returned: '%s'", response.statusCode());
@@ -143,8 +139,15 @@ public class ProxyService {
    }
 
    @WithSpan(kind = SpanKind.CLIENT)
-   protected HttpResponse<byte[]> doCallBackend(HttpRequest.Builder requestBuilder,
+   protected HttpResponse<byte[]> doCallBackend(Map<String, List<String>> requestHeaders, HttpRequest.Builder requestBuilder,
                                                 @SpanAttribute("backendEndpoint") String backendEndpoint) throws IOException, InterruptedException {
+
+      // Inject OpenTelemetry tracing headers here to get correct parent (this current client span).
+      HeadersUtil.injectTracingHeaders(requestHeaders);
+
+      // Apply headers to request builder before calling backend.
+      requestHeaders.forEach((key, values) -> values.forEach(value -> requestBuilder.header(key, value)));
+
       return httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
    }
 

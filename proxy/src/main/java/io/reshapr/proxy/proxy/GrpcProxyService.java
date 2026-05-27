@@ -144,15 +144,12 @@ public class GrpcProxyService {
          callOptions = manageSecurityHeaders(configuration.backendSecret(), callOptions, headers);
       }
 
-      // Set the other headers as Metadata in the CallOptions.
-      callOptions = callOptions.withOption(METADATA_CUSTOM_CALL_OPTION, convertHeadersToMetadata(headers));
-
       // Now we can call the gRPC service using the channel and method descriptor.
       byte[] responseBytes = null;
       try {
          String methodName = md.getService().getFullName() + "/" + md.getName();
-         responseBytes = doCallBackend(channel, GrpcUtil.buildGenericUnaryMethodDescriptor(methodName), callOptions, requestBytes,
-               configuration.backendEndpoint());
+         responseBytes = doCallBackend(channel, GrpcUtil.buildGenericUnaryMethodDescriptor(methodName), callOptions,
+               headers, requestBytes, configuration.backendEndpoint());
 
          if (logger.isDebugEnabled()) {
             logger.debugf("Proxy returned: '%s'", Status.Code.OK.name());
@@ -189,8 +186,11 @@ public class GrpcProxyService {
 
    @WithSpan(kind = SpanKind.CLIENT)
    protected byte[] doCallBackend(Channel channel, MethodDescriptor<byte[], byte[]> unaryMethodDescriptor,
-                                  CallOptions callOptions, byte[] requestBytes,
+                                  CallOptions callOptions, Map<String, List<String>> headers, byte[] requestBytes,
                                   @SpanAttribute("backendEndpoint") String backendEndpoint) throws StatusRuntimeException {
+      // Set the other headers as Metadata in the CallOptions.
+      // Ensure OpenTelemetry tracing headers have the correct parent (this current client span).
+      callOptions = callOptions.withOption(METADATA_CUSTOM_CALL_OPTION, convertHeadersToMetadata(headers));
       return ClientCalls.blockingUnaryCall(channel, unaryMethodDescriptor, callOptions, requestBytes);
    }
 
