@@ -426,7 +426,7 @@ public class McpController {
             .findFirst().orElse(null);
       if (callOperation == null) {
          // Unknown tool error as per the spec.
-         return toMcpHandlerResult(request, McpSchema.ErrorCodes.INVALID_PARAMS , "Unknown tool: " + toolRequest.name(),
+         return toMcpHandlerResult(request, McpSchema.ErrorCodes.INVALID_PARAMS, "Unknown tool: " + toolRequest.name(),
                null);
       }
 
@@ -563,10 +563,15 @@ public class McpController {
          // Determine outcome and error code from the result.
          String outcome = AuditEvent.OUTCOME_SUCCESS;
          Integer errorCode = null;
-         if (result.isJSONRPCResponse() && result.message() instanceof McpSchema.JSONRPCResponse response
-               && response.error() != null) {
+         if (result.isJSONRPCResponse()
+               && result.message() instanceof McpSchema.JSONRPCResponse response
+                  && (response.error() != null    // We have a JSONRPCError.
+                     || (response.result() != null   // Or we have a result that may hold and error (such as CallToolResult)
+                           && response.result() instanceof McpSchema.CallToolResult callToolResult && callToolResult.isError()))) {
             outcome = AuditEvent.OUTCOME_FAILURE;
-            errorCode = response.error().code();
+            if (response.error() != null) {
+               errorCode = response.error().code();
+            }
          }
 
          // Compute response content size.

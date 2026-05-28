@@ -103,10 +103,16 @@ public class AuditLogger {
       }
       LogRecordBuilder builder = otelLogger.logRecordBuilder()
             .setTimestamp(Instant.now())
-            .setSeverity(Severity.INFO)
-            .setSeverityText("INFO")
             .setBody(buildBody(event))
             .setAllAttributes(buildAttributes(event));
+
+      if (AuditEvent.OUTCOME_FAILURE.equals(event.outcome())) {
+         builder.setSeverity(Severity.WARN)
+               .setSeverityText("WARN");
+      } else {
+         builder.setSeverity(Severity.INFO)
+               .setSeverityText("INFO");
+      }
 
       builder.emit();
    }
