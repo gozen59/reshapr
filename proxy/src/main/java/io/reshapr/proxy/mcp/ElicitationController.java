@@ -51,7 +51,7 @@ public class ElicitationController {
    private final ElicitationStore elicitationStore;
    private final SessionStore sessionStore;
 
-   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "[localhost:7777]")
+   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
    /**

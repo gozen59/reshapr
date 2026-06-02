@@ -87,7 +87,7 @@ public class ReshaprGatewayApp {
    @ConfigProperty(name = "reshapr.gateway.labels", defaultValue = "{}")
    Map<String, String> labels;
 
-   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "[localhost:7777]")
+   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
    Cancellable expositionChangesSubscription;
@@ -114,8 +114,11 @@ public class ReshaprGatewayApp {
 
    /** Application startup method. */
    void onStart(@Observes StartupEvent ev) {
-      logger.infof("reShapr Gateway Application ID: %s", gatewayId);
-      logger.infof("reShapr Gateway Application labels: %s", labels);
+      if (logger.isInfoEnabled()) {
+         logger.infof("reShapr Gateway Application ID: %s", gatewayId);
+         logger.infof("reShapr Gateway Application labels: %s", labels);
+         logger.infof("reShapr Gateway Application FQDNs: %s", fqdns);
+      }
 
       try {
          // Initial discovery and fetching of expositions.
