@@ -83,7 +83,7 @@ public class McpController {
 
    private final ObjectMapper mapper = new ObjectMapper();
 
-   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "[localhost:7777]")
+   @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
    /**
