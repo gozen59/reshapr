@@ -26,7 +26,9 @@ const GITHUB_REPO = 'reshaprio/reshapr';
 const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_REPO}`;
 const GITHUB_API_BASE = `https://api.github.com/repos/${GITHUB_REPO}`;
 const COMPOSE_FILE_NAME = 'docker-compose-all-in-one.yml';
+const UI_ADDON_FILE_NAME = 'docker-compose-ui-addon.yml';
 const COMPOSE_REMOTE_PATH = `install/${COMPOSE_FILE_NAME}`;
+const UI_ADDON_REMOTE_PATH = `install/${UI_ADDON_FILE_NAME}`;
 const RESHAPR_DIR = path.join(os.homedir(), `.${CLI_NAME}`);
 const RUN_STATE_FILE = path.join(RESHAPR_DIR, 'run-state.json');
 
@@ -34,6 +36,7 @@ export const runCommand = new Command('run')
   .description(`Start ${CLI_LABEL} locally using Docker Compose`)
   .option('-r, --release <release>', 'Release of the containers to run', 'latest')
   .option('-e, --engine <engine>', 'Container engine to use (docker or podman)')
+  .option('--ui', 'Enable and deploy the web ui addon')
   .action(async (options) => {
     let release: string = options.release;
     const engine = resolveContainerEngine(options.engine);
@@ -45,28 +48,48 @@ export const runCommand = new Command('run')
     }
 
     const composeFile = getComposeFilePath(release);
+    const composeFiles: string[] = [composeFile];
 
     // Download compose file if not already cached for this release.
     if (!fs.existsSync(composeFile)) {
-      await downloadComposeFile(release, composeFile);
+      await downloadComposeFile(release, composeFile, COMPOSE_REMOTE_PATH);
     } else {
       Logger.info(`Using cached compose file for release '${release}'.`);
     }
 
+    // Handle --ui addon
+    if (options.ui) {
+      const uiAddonFile = getUiAddonFilePath(release);
+      if (!fs.existsSync(uiAddonFile)) {
+        await downloadComposeFile(release, uiAddonFile, UI_ADDON_REMOTE_PATH);
+      } else {
+        Logger.info(`Using cached UI addon compose file for release '${release}'.`);
+      }
+      composeFiles.push(uiAddonFile);
+    }
+
     Logger.info(`Starting ${CLI_LABEL} containers (release: ${release}, engine: ${engine})...`);
-    const exitCode = await runDockerCompose(['up', '-d'], composeFile, engine);
+    const exitCode = await runDockerCompose(['up', '-d'], composeFiles, engine);
 
     if (exitCode !== 0) {
       Logger.error(`${engine} compose exited with code ${exitCode}.`);
       process.exit(exitCode);
     }
 
-    saveRunState(release, composeFile, engine);
+    saveRunState(release, composeFiles, engine);
     Logger.success(`${CLI_LABEL} containers started successfully.`);
+
+    if (options.ui) {
+      Logger.info(`The web UI should be available at http://localhost:3333 once the containers are ready.`);
+    }
   });
 
 function getComposeFilePath(release: string): string {
   return path.join(RESHAPR_DIR, `docker-compose-${release}.yml`);
+}
+
+function getUiAddonFilePath(release: string): string {
+  return path.join(RESHAPR_DIR, `docker-compose-ui-addon-${release}.yml`);
 }
 
 async function resolveLatestRelease(): Promise<string> {
@@ -91,9 +114,9 @@ function getGitHubRef(release: string): string {
   return `refs/tags/${release}`;
 }
 
-async function downloadComposeFile(release: string, destPath: string): Promise<void> {
+async function downloadComposeFile(release: string, destPath: string, remotePath: string): Promise<void> {
   const ref = getGitHubRef(release);
-  const url = `${GITHUB_RAW_BASE}/${ref}/${COMPOSE_REMOTE_PATH}`;
+  const url = `${GITHUB_RAW_BASE}/${ref}/${remotePath}`;
 
   Logger.info(`Downloading compose file from ${url}...`);
   const response = await fetch(url);
@@ -114,17 +137,22 @@ async function downloadComposeFile(release: string, destPath: string): Promise<v
   Logger.success(`Compose file saved to ${destPath}`);
 }
 
-function saveRunState(release: string, composeFile: string, engine: string): void {
-  const state = { release, composeFile, engine, startedAt: new Date().toISOString() };
+function saveRunState(release: string, composeFiles: string[], engine: string): void {
+  const state = { release, composeFiles, engine, startedAt: new Date().toISOString() };
   fs.writeFileSync(RUN_STATE_FILE, JSON.stringify(state, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }
 
-export function readRunState(): { release: string; composeFile: string; engine?: string; startedAt: string } | null {
+export function readRunState(): { release: string; composeFiles: string[]; composeFile?: string; engine?: string; startedAt: string } | null {
   if (!fs.existsSync(RUN_STATE_FILE)) {
     return null;
   }
   try {
-    return JSON.parse(fs.readFileSync(RUN_STATE_FILE, 'utf-8'));
+    const state = JSON.parse(fs.readFileSync(RUN_STATE_FILE, 'utf-8'));
+    // Backward compatibility: convert legacy single composeFile to composeFiles array.
+    if (!state.composeFiles && state.composeFile) {
+      state.composeFiles = [state.composeFile];
+    }
+    return state;
   } catch {
     return null;
   }
