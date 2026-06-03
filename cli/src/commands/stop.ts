@@ -32,7 +32,7 @@ export const stopCommand = new Command('stop')
 
     const engine: ContainerEngine = (state.engine as ContainerEngine) ?? 'docker';
     Logger.info(`Stopping ${CLI_LABEL} containers (release: ${state.release}, engine: ${engine})...`);
-    const exitCode = await runDockerCompose(['down'], state.composeFile, engine);
+    const exitCode = await runDockerCompose(['down'], state.composeFiles, engine);
 
     if (exitCode !== 0) {
       Logger.error(`${engine} compose exited with code ${exitCode}.`);

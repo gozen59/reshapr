@@ -62,8 +62,9 @@ export function resolveContainerEngine(explicit?: string): ContainerEngine {
   process.exit(1);
 }
 
-export function runDockerCompose(args: string[], composeFile: string, engine: ContainerEngine = 'docker'): Promise<number> {
-  const composeArgs = ['compose', '-f', composeFile, ...args];
+export function runDockerCompose(args: string[], composeFile: string | string[], engine: ContainerEngine = 'docker'): Promise<number> {
+  const files = Array.isArray(composeFile) ? composeFile : [composeFile];
+  const composeArgs = ['compose', ...files.flatMap(f => ['-f', f]), ...args];
 
   return new Promise((resolve, reject) => {
     const proc = spawn(engine, composeArgs, {
