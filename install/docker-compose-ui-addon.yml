@@ -1,6 +1,6 @@
 services:
   web-ui:
-    image: lbroudoux/reshapr-ui:nightly
+    image: registry.reshapr.io/reshapr/reshapr-ui:nightly
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
