@@ -1,6 +1,7 @@
 services:
   web-ui:
     image: registry.reshapr.io/reshapr/reshapr-ui:nightly
+    container_name: reshapr-web-ui
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
