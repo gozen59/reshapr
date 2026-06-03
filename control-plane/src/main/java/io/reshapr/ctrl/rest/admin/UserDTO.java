@@ -18,16 +18,18 @@ package io.reshapr.ctrl.rest.admin;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * Data Transfer Object for User information.
- * @param username The username of the user
- * @param email The email of the user
+ * Data Transfer Object for User information with default organization details.
+ * @param username
+ * @param email
+ * @param firstname
+ * @param lastname
+ * @param defaultOrganizationName
  */
 @RegisterForReflection
 public record UserDTO(
-   String username,
-   String email,
-   String password,
-   String firstname,
-   String lastname
-) {
+      String username,
+      String email,
+      String firstname,
+      String lastname,
+      String defaultOrganizationName) {
 }

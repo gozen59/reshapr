@@ -13,7 +13,38 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0
 paths:
   /admin/users:
+    get:
+      operationId: getUsers
+      summary: Get the list of all registered users
+      parameters:
+        - name: page
+          in: query
+          description: Page number (starting from 0)
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserView'
+      security:
+        - admin-api-key: []
     post:
+      operationId: createUser
+      summary: Create a new user
       requestBody:
         content:
           application/json:
@@ -27,7 +58,7 @@ paths:
           description: A User with this username already exist
       security:
         - admin-api-key: [ ]
-      operationId: createUser
+
   /admin/users/{username}/organization:
     post:
       requestBody:
@@ -345,18 +376,28 @@ components:
         lastname:
           description: The user lastname
           type: string
-    User:
+    UserView:
       description: A registered user in control plane
       type: object
-      allOf:
-      - required:
-        - id
-        type: object
-        properties:
-          id:
-            description: The unique user identifier in the control plane
-            type: string
-      - $ref: '#/components/schemas/UserRequest'
+      required:
+        - username
+        - email
+      properties:
+        username:
+          description: The user username
+          type: string
+        email:
+          description: The user email
+          type: string
+        firstname:
+          description: The user firstname
+          type: string
+        lastname:
+          description: The user lastname
+          type: string
+        defaultOrganizationName:
+          description: The default organization of the user
+          type: string
     Organization:
       description: An organization within the control plane
       type: object

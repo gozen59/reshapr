@@ -24,13 +24,18 @@ import io.reshapr.ctrl.service.DependencyNotFoundException;
 import io.reshapr.ctrl.service.EntityAlreadyExistException;
 import io.reshapr.ctrl.service.OnboardingService;
 
+import io.quarkus.panache.common.Page;
+import io.quarkus.panache.common.Sort;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
@@ -60,8 +65,21 @@ public class UserResource {
       this.organizationRepository = organizationRepository;
    }
 
+   @GET
+   public List<UserDTO> getUsers(@QueryParam("page") @DefaultValue("0") int page,
+                                        @QueryParam("size") @DefaultValue("20") int size) {
+      return userRepository.findAll(Sort.ascending("username")).page(Page.of(page, size))
+            .stream()
+            .map(user -> new UserDTO(
+                  user.username, user.email,
+                  user.firstname, user.lastname,
+                  user.defaultOrganization != null ? user.defaultOrganization.name : null
+            ))
+            .toList();
+   }
+
    @POST
-   public Response createUser(@Valid UserDTO userDTO) {
+   public Response createUser(@Valid UserRequestDTO userDTO) {
       User user = null;
       try {
          user = onboardingService.createUser(new OnboardingService.UserInfo(
@@ -145,8 +163,10 @@ public class UserResource {
       organization.owner = user;
       organizationRepository.persistAndFlush(organization);
 
-      // Assign organization to user.
-      user.organizations.add(organization);
+      // Assign organization to user if not already a member.
+      if (user.organizations.stream().noneMatch(o -> o.name.equals(organizationName))) {
+         user.organizations.add(organization);
+      }
       if (user.defaultOrganization == null) {
          user.defaultOrganization = organization;
       }
