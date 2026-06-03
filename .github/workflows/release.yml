@@ -118,12 +118,14 @@ jobs:
       - name: Set next iteration version
         run: mvn -B -q versions:set -DnewVersion=${{ github.event.inputs.nextVersion }}-SNAPSHOT
 
-      - name: Set next iteration version for CLI
+      - name: Set next iteration version for CLI and Web UI
         run: |
           cd cli
           npm version ${{ github.event.inputs.nextVersion }}-SNAPSHOT --git-tag-version=false
+          cd ../web-ui
+          npm version ${{ github.event.inputs.nextVersion }}-SNAPSHOT --git-tag-version=false
 
-      - name: Commit, push and tag changes
+      - name: Commit and push changes
         run: |
           git commit -m "Setting SNAPSHOT version ${{ github.event.inputs.nextVersion }}-SNAPSHOT" .
           git push origin ${{ github.event.inputs.branch }}
