@@ -17,7 +17,7 @@
 
 import { program } from 'commander';
 import * as yaml from 'js-yaml';
-import { loginCommand, infoCommand, logoutCommand, importCommand, attachCommand, quotasCommand, runCommand, statusCommand, stopCommand } from './commands/index.js';
+import { loginCommand, infoCommand, logoutCommand, importCommand, attachCommand, quotasCommand, runCommand, statusCommand, stopCommand, switchOrgCommand } from './commands/index.js';
 import { ConfigUtil } from './utils/config.js';
 import { Logger } from './utils/logger.js';
 import { Context } from './utils/context.js';
@@ -104,5 +104,6 @@ program.addCommand(quotasCommand);
 program.addCommand(runCommand);
 program.addCommand(statusCommand);
 program.addCommand(stopCommand);
+program.addCommand(switchOrgCommand);
 
 program.parse(process.argv);
