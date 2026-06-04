@@ -48,6 +48,13 @@ docker exec "${CONTAINER_NAME}" /opt/keycloak/bin/kcadm.sh config credentials \
 
 docker exec "${CONTAINER_NAME}" /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE
 
+echo "Updating reshapr-ctrl client for web-ui logout redirect (local dev only) ..."
+RESHAPR_CTRL_CLIENT_ID="$(docker exec "${CONTAINER_NAME}" /opt/keycloak/bin/kcadm.sh get clients -r 3rdparty \
+  -q clientId=reshapr-ctrl --fields id --format csv --noquotes | tail -1)"
+docker exec "${CONTAINER_NAME}" /opt/keycloak/bin/kcadm.sh update "clients/${RESHAPR_CTRL_CLIENT_ID}" -r 3rdparty \
+  -s 'redirectUris=["http://localhost:5555/*","http://localhost:5173/*"]' \
+  -s 'attributes."post.logout.redirect.uris"="http://localhost:5173/*##http://localhost:5555/*"'
+
 echo ""
 echo "Keycloak ready:"
 echo "  Admin console: http://localhost:${HOST_PORT}/admin  (admin / admin)"
