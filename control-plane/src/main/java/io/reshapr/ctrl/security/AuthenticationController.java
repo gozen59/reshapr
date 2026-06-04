@@ -170,6 +170,29 @@ public class AuthenticationController {
    }
 
    @GET
+   @Path("/logout/oidc")
+   public Response logoutWithOidc(@QueryParam("redirect_uri") String redirectUri) {
+      logger.infof("logoutWithOidc() called with redirectUri: %s", redirectUri);
+
+      if (!oidcIdentityProviderConfig.enabled()) {
+         logger.warnf("logoutWithOidc() called with disabled configuration");
+         return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
+      }
+
+      if (redirectUri == null || redirectUri.isBlank()) {
+         return Response.status(Response.Status.BAD_REQUEST).entity("Missing redirect_uri").build();
+      }
+
+      String logoutUrl = OidcUtils.buildLogoutUrl(
+            oidcIdentityProviderConfig.url(),
+            oidcIdentityProviderConfig.clientId(),
+            redirectUri);
+
+      logger.debugf("Redirecting to OIDC logout endpoint");
+      return Response.seeOther(URI.create(logoutUrl)).build();
+   }
+
+   @GET
    @Path("/callback/oidc")
    @Produces(MediaType.TEXT_HTML)
    public Response callbackFromOidc(@QueryParam("code") String authorizationCode, @QueryParam("state") String state) {
