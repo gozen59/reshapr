@@ -140,14 +140,12 @@ function createAuthStore() {
       }
     },
 
-    /** Logout — clears the httpOnly cookie via the server and resets the store. */
-    async logout(): Promise<void> {
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-      } finally {
-        user = null;
-        profile = null;
-      }
+    /**
+     * Logout — clears the session cookie via the server.
+     * When OIDC is enabled, redirects through the IdP to terminate the SSO session.
+     */
+    logout(): void {
+      window.location.href = '/api/auth/logout';
     },
 
     /**
