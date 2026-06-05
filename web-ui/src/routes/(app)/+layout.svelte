@@ -133,7 +133,7 @@
 
   function handleSignOut() {
     userMenuOpen = false;
-    auth.logout();
+    auth.logout().then(() => goto('/login'));
   }
 
   async function selectOrganization(orgName: string) {

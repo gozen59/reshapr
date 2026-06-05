@@ -40,31 +40,6 @@ export function getPublicUrl(): string {
   return url.replace(/\/+$/, '');
 }
 
-/** Browser-facing OIDC authorization endpoint (not the server-side token URL). */
-export function getOidcAuthUrl(): string {
-  const url = env.RESHAPR_AUTHENTICATION_IDP_URL
-    ?? 'http://localhost:8888/realms/3rdparty/protocol/openid-connect/auth';
-  return url.replace(/\/+$/, '');
-}
-
-/** OIDC client id used for browser logout. */
-export function getOidcClientId(): string {
-  return env.RESHAPR_AUTHENTICATION_IDP_CLIENT_ID ?? 'reshapr-ctrl';
-}
-
-/**
- * Build the IdP logout URL for the browser (Keycloak end_session_endpoint).
- * Uses the authorization endpoint URL, not the token URL (which may use host.docker.internal).
- */
-export function buildOidcLogoutUrl(postLogoutRedirectUri: string): string {
-  const logoutEndpoint = getOidcAuthUrl().replace('/auth', '/logout');
-  const params = new URLSearchParams({
-    client_id: getOidcClientId(),
-    post_logout_redirect_uri: postLogoutRedirectUri
-  });
-  return `${logoutEndpoint}?${params.toString()}`;
-}
-
 /**
  * Decode a JWT payload without verifying the signature.
  * This is sufficient because:
