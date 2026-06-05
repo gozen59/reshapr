@@ -76,17 +76,6 @@ public class OidcUtils {
       }
    }
 
-   /**
-    * Build the OIDC provider logout URL (e.g. Keycloak end_session_endpoint).
-    * Uses the browser-facing authorization endpoint URL, replacing {@code /auth} with {@code /logout}.
-    */
-   public static String buildLogoutUrl(String authEndpointUrl, String clientId, String postLogoutRedirectUri) {
-      String logoutEndpoint = authEndpointUrl.replace("/auth", "/logout");
-      return logoutEndpoint
-            + "?client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8)
-            + "&post_logout_redirect_uri=" + URLEncoder.encode(postLogoutRedirectUri, StandardCharsets.UTF_8);
-   }
-
    private static String getAuthorizationCodeQueryString(OidcEndpointConfig oidcEndpointConfig, String authorizationCode, String redirectUri) {
       StringBuilder queryString = new StringBuilder("grant_type=authorization_code");
       queryString.append("&code=").append(authorizationCode);
