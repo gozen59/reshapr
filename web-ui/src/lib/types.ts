@@ -27,8 +27,6 @@ export interface User {
   username: string;
   email: string;
   org: string;
-  groups?: string[];
-  roles?: string[];
   expiresAt?: string | null;
   expired?: boolean;
 }

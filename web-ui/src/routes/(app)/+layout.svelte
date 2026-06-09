@@ -25,15 +25,16 @@
   import * as Collapsible from '$lib/components/ui/collapsible/index.js';
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import {
-    DashboardSquare01Icon,
     ApiIcon,
+    Building01Icon,
+    ChevronDownIcon,
+    DashboardSquare02Icon,
+    FlaskConicalIcon,
     Logout01Icon,
+    McpServerIcon,
     SidebarLeft01Icon,
     SidebarRight01Icon,
-    ChevronDownIcon,
-    Building01Icon,
-    UserIcon,
-    FlaskConicalIcon
+    UserIcon
   } from '@hugeicons/core-free-icons';
 
   let { children } = $props();
@@ -86,9 +87,19 @@
   const navigation: NavSection[] = [
     {
       items: [
-        { href: '/', label: 'Dashboard', icon: DashboardSquare01Icon },
+        { href: '/', label: 'Dashboard', icon: DashboardSquare02Icon },
+      ]
+    },
+    {
+      title: 'Catalog',
+      items: [
         { href: '/services', label: 'Services', icon: ApiIcon },
-        { href: '/account', label: 'Account', icon: UserIcon },
+      ]
+    },
+    {
+      title: 'Runtime',
+      items: [
+        { href: '/expositions', label: 'MCP Servers', icon: McpServerIcon },
       ]
     },
     {
@@ -286,7 +297,7 @@
         {/each}
 
         {#if !sidebar.collapsed}
-          <Collapsible.Root bind:open={experimentalOpen} class="mt-4">
+          <Collapsible.Root bind:open={experimentalOpen} class="mt-12">
             <Collapsible.Trigger
               class={cn(
                 'flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
@@ -334,7 +345,7 @@
         <!-- User dropdown menu (opens upward and to the right) -->
         {#if userMenuOpen}
           <div
-            class="absolute z-50 rounded-md border border-border bg-popover py-1 shadow-md
+            class="absolute z-50 min-w-40 rounded-md border border-border bg-popover py-1 shadow-md
               bottom-2 left-full ml-2"
             role="menu"
             tabindex="-1"
@@ -348,6 +359,14 @@
                 <div class="text-xs text-muted-foreground">{auth.user?.email}</div>
               </div>
             {/if}
+            <a
+              href="/account"
+              onclick={() => userMenuOpen = false}
+              class="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors whitespace-nowrap"
+            >
+              <HugeiconsIcon icon={UserIcon} size={16} />
+              <span>Account</span>
+            </a>
             <button
               onclick={handleSignOut}
               class="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors whitespace-nowrap"

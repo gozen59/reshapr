@@ -27,6 +27,7 @@
   import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose
   } from '$lib/components/ui/sheet/index.js';
+  import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
   import { HugeiconsIcon } from "@hugeicons/svelte";
   import { Building01Icon, CheckmarkCircle01Icon } from '@hugeicons/core-free-icons';
 
@@ -303,7 +304,7 @@
             <TableCell>{user.lastname ?? '—'}</TableCell>
             <TableCell>
               {#if user.defaultOrganizationName}
-                <Badge variant="outline"><HugeiconsIcon icon={Building01Icon} size={12} class="mr-1" /> {user.defaultOrganizationName}</Badge>
+                <OrganizationBadge organizationName={user.defaultOrganizationName} />
               {:else}
                 —
               {/if}

@@ -18,7 +18,7 @@
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
+	import ServiceTypeBadge from '$lib/components/ServiceTypeBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 
@@ -72,18 +72,6 @@
 		}
 	}
 
-	function typeBadgeStyle(type: string): string {
-		switch (type?.toUpperCase()) {
-			case 'REST':
-				return 'background-color: #6BBD4F; color: white;';
-			case 'GRAPHQL':
-				return 'background-color: #E10098; color: white;';
-			case 'GRPC':
-				return 'background-color: #c0a16b; color: white;';
-			default:
-				return '';
-		}
-	}
 
 	async function load() {
 		loading = true;
@@ -148,9 +136,7 @@
 							<Card.Title class="min-w-0 flex-1 text-base leading-snug break-all">
 								{service.name}
 							</Card.Title>
-							<Badge class="shrink-0" style={typeBadgeStyle(service.type)}>
-								{service.type}
-							</Badge>
+							<ServiceTypeBadge type={service.type} class="shrink-0" />
 						</div>
 						<Card.Description class="mt-1">
 							Version: <b>{service.version}</b>

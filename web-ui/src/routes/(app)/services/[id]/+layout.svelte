@@ -20,6 +20,8 @@
 	import { setContext } from 'svelte';
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
+	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
+	import ServiceTypeBadge from '$lib/components/ServiceTypeBadge.svelte';
 	import { parseServiceRecord } from '$lib/serviceHub.js';
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -123,20 +125,22 @@
 		{:else if service}
 			<h2 class="text-xl font-semibold tracking-tight">
 				{service.name}
-				<span class="text-muted-foreground font-normal">:{service.version}</span>
 			</h2>
-			<p class="text-muted-foreground mt-1 text-sm">
-				<code class="text-xs">{service.id}</code>
+			<h4>
+				<p class="text-muted-foreground font-normal">Version: {service.version}</p>
+			</h4>
+			<p class="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
+				<code class="bg-muted rounded px-1 py-0.5 font-mono">{service.id}</code>
 				{#if service.organizationId}
-					· org <code class="text-xs">{service.organizationId}</code>
+					· <OrganizationBadge organizationName={service.organizationId} />
 				{/if}
-				· {service.type}
+				· <ServiceTypeBadge type={service.type} />
 			</p>
 		{:else}
 			<h2 class="text-xl font-semibold tracking-tight">Service {serviceId}</h2>
 		{/if}
 	</div>
-	<Button variant="destructive" size="sm" disabled={loading} onclick={() => void onDelete()}>
+	<Button variant="destructive" disabled={loading} onclick={() => void onDelete()}>
 		Delete service
 	</Button>
 </div>
