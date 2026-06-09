@@ -88,13 +88,7 @@
             <p class="font-medium">{auth.user.email ?? '—'}</p>
           </div>
           <div>
-            <p class="text-muted-foreground text-xs">Groups</p>
-            <p class="font-medium">
-              {auth.user.groups && auth.user.groups.length > 0 ? auth.user.groups.join(', ') : '—'}
-            </p>
-          </div>
-          <div>
-            <p class="text-muted-foreground text-xs">Platform admin (UI)</p>
+            <p class="text-muted-foreground text-xs">Reshapr Platform Admin</p>
             <p class="font-medium">{auth.isAdmin ? 'Yes' : 'No'}</p>
           </div>
         </Card.Content>
@@ -113,12 +107,6 @@
               {:else}
                 —
               {/if}
-            </p>
-          </div>
-          <div>
-            <p class="text-muted-foreground text-xs">Roles</p>
-            <p class="font-medium">
-              {auth.user.roles && auth.user.roles.length > 0 ? auth.user.roles.join(', ') : '—'}
             </p>
           </div>
           <div>

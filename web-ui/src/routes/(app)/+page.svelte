@@ -23,10 +23,11 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { ApiIcon, McpServerIcon } from '@hugeicons/core-free-icons';
 	import Activity from '@lucide/svelte/icons/activity';
 	import Layers from '@lucide/svelte/icons/layers';
 	import Network from '@lucide/svelte/icons/network';
-	import Server from '@lucide/svelte/icons/server';
 
 	let stats = $state<DashboardStats | null>(null);
 	let error = $state<string | null>(null);
@@ -76,8 +77,9 @@
 	{/snippet}
 </PageHeader>
 
-<p class="text-muted-foreground mb-4 text-sm">
-	Summary for <strong>your organization</strong> ({auth.currentOrg}), using v1 APIs exposed by the control plane.
+<p class="text-muted-foreground mb-4">
+	Welcome back, <strong>{auth.user?.username}</strong>.
+	You're working in the <strong>{auth.user?.org}</strong> organization.
 </p>
 
 {#if error}
@@ -85,36 +87,10 @@
 {/if}
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-	<!-- Platform user/org counts: no v1 API — see docs/issue-admin-api-platform-dashboard.md
-	<Card.Root class="opacity-90">
-		<Card.Header class="flex flex-row items-center justify-between pb-2">
-			<Card.Title class="text-sm font-medium">Users (platform)</Card.Title>
-			<Users class="text-muted-foreground size-4" />
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmt(stats?.userCount)}</p>
-			<p class="text-muted-foreground mt-1 text-xs">Not available on v1 API</p>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root class="opacity-90">
-		<Card.Header class="flex flex-row items-center justify-between pb-2">
-			<Card.Title class="text-sm font-medium">Organizations (platform)</Card.Title>
-			<Building2 class="text-muted-foreground size-4" />
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmt(stats?.organizationCount)}</p>
-			<p class="text-muted-foreground mt-1 text-xs">
-				Current org: <code class="text-xs">{stats?.organizationId ?? '…'}</code>
-			</p>
-		</Card.Content>
-	</Card.Root>
-	-->
-
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between pb-2">
 			<Card.Title class="text-sm font-medium">Services</Card.Title>
-			<Server class="text-muted-foreground size-4" />
+			<HugeiconsIcon icon={ApiIcon} class="text-muted-foreground size-6" />
 		</Card.Header>
 		<Card.Content>
 			<p class="text-3xl font-bold tracking-tight">{fmt(stats?.serviceCount)}</p>
@@ -227,8 +203,8 @@
 
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between pb-2">
-			<Card.Title class="text-sm font-medium">Expositions</Card.Title>
-			<Layers class="text-muted-foreground size-4" />
+			<Card.Title class="text-sm font-medium">MCP Servers</Card.Title>
+			<HugeiconsIcon icon={McpServerIcon} class="text-muted-foreground size-6" />
 		</Card.Header>
 		<Card.Content>
 			<p class="text-3xl font-bold tracking-tight">{fmt(stats?.expositionCount)}</p>

@@ -15,7 +15,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { getSessionToken, extractUserProfile, extractSessionClaims, decodeJwtPayload } from '$lib/server/auth.js';
+import { getSessionToken, extractUserProfile, decodeJwtPayload } from '$lib/server/auth.js';
 import type { RequestHandler } from './$types.js';
 
 /**
@@ -53,7 +53,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
     email: profile.email,
     org: profile.org,
     isAdmin: profile.org === 'reshapr',
-    ...extractSessionClaims(token)
+    expiresAt: formatExpiresAt(payload) // Optional ISO string of JWT expiration time.
   });
 };
+
+function formatExpiresAt(payload: Record<string, any> | null) : string | undefined {
+  if (payload && typeof payload.exp === 'number' && Number.isFinite(payload.exp)) {
+    return new Date(payload.exp * 1000).toISOString();
+  }
+}
 
