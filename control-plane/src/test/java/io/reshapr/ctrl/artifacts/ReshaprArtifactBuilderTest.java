@@ -135,6 +135,43 @@ class ReshaprArtifactBuilderTest {
    }
 
    @Test
+   void testValidParsingScriptCustomTools() {
+      URL customToolsURL = getClass().getResource("/io/reshapr/ctrl/artifacts/custom-tools-script-valid.yaml");
+      File customToolsFile = new File(customToolsURL.getFile());
+
+      ReshaprArtifactBuilder.ArtifactWithServiceRef artifactWithServiceRef = null;
+      try {
+         artifactWithServiceRef = ReshaprArtifactBuilder.parseArtifact("custom-tools-script-valid.yaml", customToolsFile);
+      } catch (Exception e) {
+         fail("Exception should not have been thrown: " + e.getMessage());
+      }
+
+      assertNotNull(artifactWithServiceRef);
+
+      Artifact artifact = artifactWithServiceRef.artifact();
+      assertEquals(ArtifactType.RESHAPR_CUSTOM_TOOLS, artifact.type);
+      assertEquals("custom-tools-script-valid.yaml", artifact.name);
+      assertEquals("custom-tools-script-valid.yaml", artifact.sourceArtifact);
+      assertEquals("GitHub GraphQL", artifactWithServiceRef.serviceName());
+      assertEquals("20250917", artifactWithServiceRef.serviceVersion());
+   }
+
+   @Test
+   void testNonConformantScriptCustomTools() {
+      URL customToolsURL = getClass().getResource("/io/reshapr/ctrl/artifacts/custom-tools-script-invalid.yaml");
+      File customToolsFile = new File(customToolsURL.getFile());
+
+      try {
+         ReshaprArtifactBuilder.parseArtifact("custom-tools-script-invalid.yaml", customToolsFile);
+      } catch (ReshaprArtifactException mae) {
+         assertEquals("Artifact content is not valid against schema for kind 'CustomTools' and version 'reshapr.io/v1alpha1'",
+               mae.getMessage());
+         return;
+      }
+      fail("An exception should have been thrown for a script custom tool missing the 'tools' allow-list.");
+   }
+
+   @Test
    void testNonConformantResources() {
       URL customToolsURL = getClass().getResource("/io/reshapr/ctrl/artifacts/resources-invalid.yaml");
       File customToolsFile = new File(customToolsURL.getFile());

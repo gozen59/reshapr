@@ -1,0 +1,25 @@
+apiVersion: reshapr.io/v1alpha1
+kind: CustomTools
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+customTools:
+  get_user_with_followers_and_issues:
+    description: Get a user details together with their issues from another service
+    input:
+      type: object
+      properties:
+        user:
+          description: The GitHub handle of the user
+          type: string
+      required:
+        - user
+    tools:
+      - tool: user
+      - service: "Issues API:1.0.0"
+        tool: listIssues
+    script: |
+      const user = rs.callTool('user', { login: input.user });
+      const issues = rs.callTool('Issues API:1.0.0', 'listIssues', { login: input.user });
+      return { user: user.content, issues: issues.content };
+

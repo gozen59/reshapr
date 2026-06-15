@@ -1,0 +1,121 @@
+apiVersion: reshapr.io/v1alpha1
+kind: CustomTools
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+customTools:
+
+  user_overview:
+    description: >-
+      Get a concise overview of a GitHub user: profile basics plus their 5 most recent
+      repositories and 5 latest issues, slimmed down to the essential fields.
+    input:
+      type: object
+      properties:
+        user:
+          type: string
+          description: The GitHub login of the user to fetch
+      required:
+        - user
+    tools:
+      - tool: user
+    script: |
+      function userOf(result) {
+        if (!result.ok) { return null; }
+        const c = result.content || {};
+        if (c.data && c.data.user) { return c.data.user; }
+        if (c.user) { return c.user; }
+        return c;
+      }
+      function nodesOf(connection) {
+        if (!connection) { return []; }
+        if (connection.nodes) { return connection.nodes; }
+        if (connection.edges) { return connection.edges.map(function (e) { return e.node; }); }
+        return [];
+      }
+
+      const result = rs.callTool('user', {
+        login: input.user,
+        __relation_repositories: { first: 5 },
+        __relation_issues: { last: 5 }
+      });
+
+      if (!result.ok) {
+        return { error: result.error };
+      }
+
+      const user = userOf(result);
+      const topRepositories = nodesOf(user.repositories).map(function (r) {
+        return { name: r.name, description: r.description, stars: r.stargazerCount, url: r.url };
+      });
+      const recentIssues = nodesOf(user.issues).map(function (i) {
+        return { title: i.title, state: i.state, url: i.url };
+      });
+
+      return {
+        login: user.login,
+        name: user.name,
+        bio: user.bio,
+        company: user.company,
+        location: user.location,
+        topRepositories: topRepositories,
+        recentIssues: recentIssues
+      };
+
+  compare_two_users:
+    description: >-
+      Fetch two GitHub users in parallel and return a side-by-side comparison of their profile
+      and a sample of their repositories.
+    input:
+      type: object
+      properties:
+        firstUser:
+          type: string
+          description: The GitHub login of the first user to compare
+        secondUser:
+          type: string
+          description: The GitHub login of the second user to compare
+      required:
+        - firstUser
+        - secondUser
+    tools:
+      - tool: user
+    script: |
+      function userOf(result) {
+        if (!result.ok) { return null; }
+        const c = result.content || {};
+        if (c.data && c.data.user) { return c.data.user; }
+        if (c.user) { return c.user; }
+        return c;
+      }
+      function nodesOf(connection) {
+        if (!connection) { return []; }
+        if (connection.nodes) { return connection.nodes; }
+        if (connection.edges) { return connection.edges.map(function (e) { return e.node; }); }
+        return [];
+      }
+      function summarize(result, login) {
+        if (!result.ok) { return { login: login, error: result.error }; }
+        const user = userOf(result);
+        const repos = nodesOf(user.repositories);
+        return {
+          login: user.login || login,
+          name: user.name,
+          company: user.company,
+          location: user.location,
+          repositoriesSampleSize: repos.length,
+          topRepositoryNames: repos.map(function (r) { return r.name; })
+        };
+      }
+
+      const p1 = rs.callToolAsync('user', { login: input.firstUser, __relation_repositories: { first: 5 } });
+      const p2 = rs.callToolAsync('user', { login: input.secondUser, __relation_repositories: { first: 5 } });
+      const results = rs.awaitPromises([p1, p2]);
+
+      return {
+        users: [
+          summarize(results[0], input.firstUser),
+          summarize(results[1], input.secondUser)
+        ]
+      };
+

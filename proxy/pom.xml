@@ -18,6 +18,7 @@
     <quarkus-web-bundler.version>1.9.3</quarkus-web-bundler.version>
     <zjsonpatch.version>0.6.2</zjsonpatch.version>
     <jtoon.version>2.0.0</jtoon.version>
+    <quickjs4j.version>0.0.19</quickjs4j.version>
   </properties>
 
   <dependencies>
@@ -128,6 +129,17 @@
     </dependency>
 
     <dependency>
+      <groupId>io.roastedroot</groupId>
+      <artifactId>quickjs4j</artifactId>
+      <version>${quickjs4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.roastedroot</groupId>
+      <artifactId>quickjs4j-annotations</artifactId>
+      <version>${quickjs4j.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.graalvm.sdk</groupId>
       <artifactId>nativeimage</artifactId>
       <scope>provided</scope>
@@ -189,6 +201,11 @@
               <groupId>org.mapstruct</groupId>
               <artifactId>mapstruct-processor</artifactId>
               <version>${mapstruct.version}</version>
+            </path>
+            <path>
+              <groupId>io.roastedroot</groupId>
+              <artifactId>quickjs4j-processor</artifactId>
+              <version>${quickjs4j.version}</version>
             </path>
           </annotationProcessorPaths>
         </configuration>
