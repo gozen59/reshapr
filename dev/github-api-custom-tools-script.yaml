@@ -1,0 +1,67 @@
+apiVersion: reshapr.io/v1alpha1
+kind: CustomTools
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+customTools:
+  # ---------------------------------------------------------------------------------------------
+  # Fetch two users in parallel and return a side-by-side comparison.
+  # Demonstrates non-blocking orchestration with callToolAsync + awaitPromises.
+  # ---------------------------------------------------------------------------------------------
+  compare_two_users:
+    description: >-
+      Fetch two GitHub users in parallel and return a side-by-side comparison of their profile
+      and a sample of their repositories.
+    input:
+      type: object
+      properties:
+        firstUser:
+          type: string
+          description: The GitHub login of the first user to compare
+        secondUser:
+          type: string
+          description: The GitHub login of the second user to compare
+      required:
+        - firstUser
+        - secondUser
+    tools:
+      - tool: user
+    script: |
+      function userOf(result) {
+        if (!result.ok) { return null; }
+        const c = result.content || {};
+        if (c.data && c.data.user) { return c.data.user; }
+        if (c.user) { return c.user; }
+        return c;
+      }
+      function nodesOf(connection) {
+        if (!connection) { return []; }
+        if (connection.nodes) { return connection.nodes; }
+        if (connection.edges) { return connection.edges.map(function (e) { return e.node; }); }
+        return [];
+      }
+      function summarize(result, login) {
+        if (!result.ok) { return { login: login, error: result.error }; }
+        const user = userOf(result);
+        const repos = nodesOf(user.repositories);
+        return {
+          login: user.login || login,
+          name: user.name,
+          company: user.company,
+          location: user.location,
+          repositoriesSampleSize: repos.length,
+          topRepositoryNames: repos.map(function (r) { return r.name; })
+        };
+      }
+
+      // Kick off both fetches concurrently, then await both.
+      const p1 = rs.callToolAsync('user', { login: input.firstUser, __relation_repositories: { last: 2 } });
+      const p2 = rs.callToolAsync('user', { login: input.secondUser, __relation_repositories: { last: 2 } });
+      const results = rs.awaitPromises([p1, p2]);
+
+      return {
+        users: [
+          summarize(results[0], input.firstUser),
+          summarize(results[1], input.secondUser)
+        ]
+      };

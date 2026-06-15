@@ -1,0 +1,21 @@
+apiVersion: reshapr.io/v1alpha1
+kind: CustomTools
+service:
+  name: GitHub GraphQL
+  version: '20250917'
+customTools:
+  get_user_with_followers_and_issues:
+    description: Script form is missing the required 'tools' allow-list
+    input:
+      type: object
+      properties:
+        user:
+          description: The GitHub handle of the user
+          type: string
+      required:
+        - user
+    # 'tools' is missing but it is required when 'script' is set
+    script: |
+      const user = rs.callTool('user', { login: input.user });
+      return { user: user.content };
+

@@ -17,10 +17,16 @@ package io.reshapr.proxy.mcp.converters;
 
 import io.reshapr.json.ObjectMapperFactory;
 import io.reshapr.proxy.mcp.McpSchema;
+import io.reshapr.proxy.mcp.DeclaredTool;
+import io.reshapr.proxy.mcp.ToolCallExecutor;
 import io.reshapr.proxy.mcp.WorkCache;
+import io.reshapr.proxy.mcp.script.CustomToolScriptRunner;
+import io.reshapr.proxy.mcp.script.ReshaprToolsBuiltins;
+import io.reshapr.proxy.mcp.script.ScriptExecutionContext;
 import io.reshapr.proxy.registry.ArtifactEntry;
 import io.reshapr.proxy.registry.ArtifactEntryType;
 import io.reshapr.proxy.registry.ConfigurationEntry;
+import io.reshapr.proxy.registry.GatewayRegistry;
 import io.reshapr.proxy.registry.OperationEntry;
 import io.reshapr.proxy.registry.ServiceEntry;
 
@@ -34,7 +40,6 @@ import org.jboss.logging.Logger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,23 +59,51 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
    private static final String CACHE_KEYS_PREFIX = "mctmcptc-";
 
    private static final ObjectMapper YAML_MAPPER = ObjectMapperFactory.getYamlObjectMapper();
+   private static final ObjectMapper JSON_MAPPER = ObjectMapperFactory.getJsonObjectMapper();
+
    private static final String ARGUMENT_START_MARKER = "${";
    private static final String ARGUMENT_END_MARKER = "}";
+   private static final String TOOL_NODE = "tool";
+   private static final String SCRIPT_NODE = "script";
 
    private final ServiceEntry service;
    private final List<ArtifactEntry> attachedArtifacts;
    private final WorkCache workCache;
    private final McpToolConverter protocolToolConverter;
+   private final ToolCallExecutor toolCallExecutor;
+   private final GatewayRegistry gatewayRegistry;
 
    /**
-    * Creates a ReshaprCustomToolsMcpToolConverter with required dependencies.
+    * Creates a ReshaprCustomToolsMcpToolConverter with the dependencies required for script support.
+    * @param service The service these custom tools relate to.
+    * @param attachedArtifacts The artifacts attached to the service.
+    * @param workCache The work cache for temporary data storage.
+    * @param protocolToolConverter The wrapped protocol-specific converter.
+    * @param toolCallExecutor The executor used by scripts to call other tools (may be null for template-only usage).
+    * @param gatewayRegistry The registry used to resolve cross-service script calls (may be null for template-only usage).
     */
    public ReshaprCustomToolsMcpToolConverter(ServiceEntry service, @Nullable List<ArtifactEntry> attachedArtifacts,
-                                             WorkCache workCache, McpToolConverter protocolToolConverter) {
+                                             WorkCache workCache, McpToolConverter protocolToolConverter,
+                                             @Nullable ToolCallExecutor toolCallExecutor,
+                                             @Nullable GatewayRegistry gatewayRegistry) {
       this.service = service;
       this.attachedArtifacts = attachedArtifacts;
       this.workCache = workCache;
       this.protocolToolConverter = protocolToolConverter;
+      this.toolCallExecutor = toolCallExecutor;
+      this.gatewayRegistry = gatewayRegistry;
+   }
+
+   /**
+    * Creates a ReshaprCustomToolsMcpToolConverter for template-only custom tools (no script support).
+    * @param service The service these custom tools relate to.
+    * @param attachedArtifacts The artifacts attached to the service.
+    * @param workCache The work cache for temporary data storage.
+    * @param protocolToolConverter The wrapped protocol-specific converter.
+    */
+   public ReshaprCustomToolsMcpToolConverter(ServiceEntry service, @Nullable List<ArtifactEntry> attachedArtifacts,
+                                             WorkCache workCache, McpToolConverter protocolToolConverter) {
+      this(service, attachedArtifacts, workCache, protocolToolConverter, null, null);
    }
 
    @Override
@@ -83,12 +116,16 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
          // We must accumulate target tools to avoid duplicates.
          Set<String> targetTools = new HashSet<>();
 
-         Iterator<Map.Entry<String, JsonNode>> customToolNode = customToolsNode.fields();
-         while (customToolNode.hasNext()) {
-            Map.Entry<String, JsonNode> entry = customToolNode.next();
-            // Add the custom tool as an operation entry and accumulate target tool.
+         Set<Map.Entry<String, JsonNode>> customToolNodes = customToolsNode.properties();
+         for (Map.Entry<String, JsonNode> entry : customToolNodes) {
+            // Add the custom tool as an operation entry.
             operationEntries.add(new OperationEntry(entry.getKey(), null, null, null, null));
-            targetTools.add(entry.getValue().path("tool").asText());
+            // For declarative (template) custom tools, accumulate the single target tool so it gets
+            // hidden from the protocol tools. Script custom tools don't hide their declared tools.
+            JsonNode targetToolNode = entry.getValue().path(TOOL_NODE);
+            if (!targetToolNode.isMissingNode() && !targetToolNode.asText().isEmpty()) {
+               targetTools.add(targetToolNode.asText());
+            }
          }
 
          // Then get the protocol specific tools excluding those that are already targeted by custom tools.
@@ -150,8 +187,13 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
       if (isCustomTool(customToolsNode, operation.name())) {
          JsonNode customToolNode = customToolsNode.get(operation.name());
 
-         // Find the target operation on service.
-         String target = customToolNode.path("tool").asText();
+         // If the custom tool is backed by a script, execute it.
+         if (customToolNode.has(SCRIPT_NODE)) {
+            return executeScript(operation, customToolNode, request, headers);
+         }
+
+         // Otherwise, this is a declarative (template) custom tool: find the target operation on service.
+         String target = customToolNode.path(TOOL_NODE).asText();
          targetOperation = service.operations().stream()
                .filter(entry -> entry.name().equals(target))
                .findFirst().orElse(null);
@@ -170,6 +212,71 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
       }
 
       return protocolToolConverter.getCallResponse(targetOperation, configuration, targetRequest, headers);
+   }
+
+   @Override
+   public @Nullable List<DeclaredTool> getDeclaredTools(OperationEntry operation) {
+      JsonNode customToolsNode = getCustomToolsNode();
+      if (isCustomTool(customToolsNode, operation.name())) {
+         JsonNode customToolNode = customToolsNode.get(operation.name());
+         if (customToolNode.has(SCRIPT_NODE)) {
+            return parseDeclaredTools(customToolNode);
+         }
+      }
+      return null;
+   }
+
+   /** Execute a script-based custom tool and return its JSON result as a Response. */
+   private Response executeScript(OperationEntry operation, JsonNode customToolNode, McpSchema.SimpleRequest request,
+                                  Map<String, List<String>> headers) {
+      if (toolCallExecutor == null || gatewayRegistry == null) {
+         logger.errorf("Cannot execute script custom tool '%s': executor/registry not available", operation.name());
+         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
+               + "\"message\":\"Script execution context is not available\"}}", true);
+      }
+
+      // Guard-rail: bound cross-script recursion depth.
+      int parentDepth = ScriptExecutionContext.currentDepth();
+      if (parentDepth >= toolCallExecutor.scriptMaxDepth()) {
+         logger.warnf("Maximum script nesting depth (%d) reached for tool '%s'",
+               toolCallExecutor.scriptMaxDepth(), operation.name());
+         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
+               + "\"message\":\"Maximum script nesting depth reached\"}}", true);
+      }
+
+      String script = customToolNode.path(SCRIPT_NODE).asText();
+      List<DeclaredTool> declaredTools = parseDeclaredTools(customToolNode);
+
+      ReshaprToolsBuiltins builtins = new ReshaprToolsBuiltins(service, gatewayRegistry, toolCallExecutor,
+            headers, declaredTools, toolCallExecutor.scriptMaxToolCalls());
+      CustomToolScriptRunner runner = new CustomToolScriptRunner(JSON_MAPPER, toolCallExecutor.scriptTimeoutMillis());
+
+      try {
+         String result = runner.run(script, request.arguments(), builtins, parentDepth + 1);
+         return new Response(result, false);
+      } catch (Exception e) {
+         logger.errorf(e, "Exception while running script custom tool '%s'", operation.name());
+         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
+               + "\"message\":\"Script execution failed\"}}", true);
+      }
+   }
+
+   /** Parse the `tools` allow-list declared by a script custom tool. */
+   private List<DeclaredTool> parseDeclaredTools(JsonNode customToolNode) {
+      List<DeclaredTool> declaredTools = new ArrayList<>();
+      JsonNode toolsNode = customToolNode.path("tools");
+      if (toolsNode.isArray()) {
+         for (JsonNode toolNode : toolsNode) {
+            String tool = toolNode.path(TOOL_NODE).asText(null);
+            if (tool == null) {
+               continue;
+            }
+            JsonNode serviceNode = toolNode.path("service");
+            String serviceCoordinate = serviceNode.isMissingNode() ? null : serviceNode.asText(null);
+            declaredTools.add(new DeclaredTool(serviceCoordinate, tool));
+         }
+      }
+      return declaredTools;
    }
 
    @Override
@@ -207,12 +314,12 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
          workCache.set(major, CACHE_KEYS_PREFIX, promptsNode);
          return promptsNode;
       } catch (Exception e) {
-         logger.errorf(e, "Cannot read Reshapr Prompts artifact for service '%s'", service.id());
+         logger.errorf(e, "Cannot read Reshapr CustomTools artifact for service '%s'", service.id());
          return null;
       }
    }
 
-   /** Returns true if the provided name matches a tool name within the `customTooles` node. */
+   /** Returns true if the provided name matches a tool name within the `customTools` node. */
    private boolean isCustomTool(JsonNode customToolsNode, String name) {
       return customToolsNode != null && customToolsNode.has(name);
    }
@@ -236,7 +343,7 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
       return arguments;
    }
 
-   /** Build a complete map from incoming custom tools request where keys are newted param names (separated by `.`)  with their values. */
+   /** Build a complete map from incoming custom tools request where keys are nested param names (separated by `.`)  with their values. */
    protected static void completeCustomArgumentsMap(Map<String, Object> customArgumentsValues,
                                                  Map<String, Object> requestArguments,
                                                  String keyPrefix) {

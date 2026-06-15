@@ -16,9 +16,15 @@
 package io.reshapr.proxy.mcp.converters;
 
 import io.reshapr.proxy.mcp.McpSchema;
+import io.reshapr.proxy.mcp.DeclaredTool;
 import io.reshapr.proxy.proxy.BackendResponse;
 import io.reshapr.proxy.proxy.ContentUtil;
-import io.reshapr.proxy.registry.*;
+import io.reshapr.proxy.registry.ConfigurationEntry;
+import io.reshapr.proxy.registry.GatewayRegistry;
+import io.reshapr.proxy.registry.OperationEntry;
+import io.reshapr.proxy.registry.ResourceEntry;
+import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.registry.ToolEntry;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
@@ -107,6 +113,16 @@ public abstract class McpToolConverter {
    public abstract Uni<Response> getCallResponseUni(OperationEntry operation, McpSchema.SimpleRequest request,
                                                  Map<String, List<String>> headers);
 
+   /**
+    * If the given operation declares a set of tools it may call, return that list (its allow-list);
+    * otherwise return {@code null}. Used as a security allow-list and to drive the elicitation
+    * pre-flight before invoking the operation (e.g. for script-based custom tools).
+    * @param operation The operation to inspect.
+    * @return The declared tools allow-list, or {@code null} if the operation declares none.
+    */
+   public @Nullable List<DeclaredTool> getDeclaredTools(OperationEntry operation) {
+      return null;
+   }
 
    /**
     * Response record holding content and fault indicator.
