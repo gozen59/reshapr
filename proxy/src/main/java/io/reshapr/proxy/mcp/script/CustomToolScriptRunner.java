@@ -56,6 +56,10 @@ public class CustomToolScriptRunner {
    private static final ExecutorService SCRIPT_EXECUTOR =
          Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("rs-script-", 0).factory());
 
+   /** Markers framing the structured payload of an {@code rs.fail(...)} error in a thrown JS message. */
+   static final String RS_FAIL_MARKER = "__RS_FAIL__";
+   static final String RS_END_MARKER = "__RS_END__";
+
    /** The {@code rs} façade exposed to scripts, built on top of the {@code __rs} builtins. */
    private static final String RS_PRELUDE = """
          const rs = {
@@ -67,6 +71,9 @@ public class CustomToolScriptRunner {
            },
            awaitPromises: function(promises) {
              return __rs.awaitPromises(promises).map(function(s) { return JSON.parse(s); });
+           },
+           fail: function(message, data) {
+             throw new Error('__RS_FAIL__' + JSON.stringify({ message: String(message), data: (data === undefined ? null : data) }) + '__RS_END__');
            }
          };
          """;
@@ -121,8 +128,7 @@ public class CustomToolScriptRunner {
             .addBuiltins(ReshaprToolsBuiltins_Builtins.toBuiltins(builtins))
             .build();
 
-      Runner runner = Runner.builder().withEngine(engine).build();
-      try {
+      try (Runner runner = Runner.builder().withEngine(engine).build()) {
          ScriptApi api = ScriptApi_Invokables.create(fullScript, runner);
 
          // Capture the request scoped values and OTel context so they (and the script depth) are
@@ -140,9 +146,7 @@ public class CustomToolScriptRunner {
          throw e;
       } catch (Exception e) {
          logger.error("Exception while executing custom tool script", e);
-         throw new CustomToolScriptException("Custom tool script execution failed: " + e.getMessage(), e);
-      } finally {
-         runner.close();
+         throw new CustomToolScriptException("Custom tool script execution failed", toErrorContent(e.getMessage()), e);
       }
    }
 
@@ -167,14 +171,54 @@ public class CustomToolScriptRunner {
          // Best-effort cancellation: interruptible blocking (sleep, I/O) is cancelled; a pure
          // CPU loop in the JS engine cannot be interrupted and the orphan thread will finish later.
          future.cancel(true);
-         throw new CustomToolScriptException("Custom tool script timed out after " + timeoutMillis + " ms", e);
+         throw new CustomToolScriptException("Custom tool script timed out",
+               "Custom tool script timed out after " + timeoutMillis + " ms", e);
       } catch (ExecutionException e) {
          Throwable cause = e.getCause() != null ? e.getCause() : e;
-         throw new CustomToolScriptException("Custom tool script execution failed: " + cause.getMessage(), cause);
+         throw new CustomToolScriptException("Custom tool script execution failed",
+               toErrorContent(cause.getMessage()), cause);
       } catch (InterruptedException e) {
          Thread.currentThread().interrupt();
-         throw new CustomToolScriptException("Interrupted while running custom tool script", e);
+         throw new CustomToolScriptException("Interrupted while running custom tool script",
+               "Interrupted while running custom tool script", e);
       }
+   }
+
+   /**
+    * Build the MCP-facing error content from a thrown script message. A structured
+    * {@code rs.fail(message, data)} payload is returned as canonical JSON; any other message is
+    * surfaced as sanitized text.
+    */
+   String toErrorContent(@Nullable String rawMessage) {
+      if (rawMessage == null || rawMessage.isBlank()) {
+         return "Custom tool script failed";
+      }
+      int start = rawMessage.indexOf(RS_FAIL_MARKER);
+      if (start >= 0) {
+         int from = start + RS_FAIL_MARKER.length();
+         int end = rawMessage.indexOf(RS_END_MARKER, from);
+         if (end > from) {
+            String json = rawMessage.substring(from, end);
+            try {
+               return mapper.writeValueAsString(mapper.readTree(json));
+            } catch (Exception ignored) {
+               // Not parseable, fall back to text.
+            }
+         }
+      }
+      return sanitize(rawMessage);
+   }
+
+   /** Strip a leading {@code "Error: "} prefix and truncate overly long messages. */
+   private static String sanitize(String message) {
+      String sanitized = message.strip();
+      if (sanitized.startsWith("Error: ")) {
+         sanitized = sanitized.substring("Error: ".length());
+      }
+      if (sanitized.length() > 2000) {
+         sanitized = sanitized.substring(0, 2000) + "…";
+      }
+      return sanitized;
    }
 
    /** Build the complete script: prelude + input constant + wrapped process() function. */
@@ -194,8 +238,28 @@ public class CustomToolScriptRunner {
 
    /** Thrown when a custom tool script fails to execute. */
    public static class CustomToolScriptException extends RuntimeException {
-      public CustomToolScriptException(String message, Throwable cause) {
+
+      /** The MCP-facing error content (sanitized text, or canonical JSON for {@code rs.fail}). */
+      private final transient String errorContent;
+
+      /**
+       * Build the exception with a distinct internal message and MCP-facing error content.
+       * @param message The internal/log message.
+       * @param errorContent The content surfaced to the MCP client (with {@code isError = true}).
+       * @param cause The underlying cause.
+       */
+      public CustomToolScriptException(String message, String errorContent, Throwable cause) {
          super(message, cause);
+         this.errorContent = errorContent;
+      }
+
+      public CustomToolScriptException(String message, Throwable cause) {
+         this(message, message, cause);
+      }
+
+      /** The content to surface to the MCP client as an error result. */
+      public String errorContent() {
+         return errorContent;
       }
    }
 }
