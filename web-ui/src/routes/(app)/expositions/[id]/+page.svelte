@@ -90,7 +90,7 @@
 </p>
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-	<h2 class="text-xl font-semibold tracking-tight">Exposition {id}</h2>
+	<h1 class="text-2xl font-bold tracking-tight">Exposition {id}</h1>
 	<Button variant="destructive" onclick={() => void onDelete()}>Delete</Button>
 </div>
 

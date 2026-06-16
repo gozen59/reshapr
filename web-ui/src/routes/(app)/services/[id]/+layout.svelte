@@ -26,6 +26,8 @@
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils.js';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { Delete02Icon } from '@hugeicons/core-free-icons';
 
 	let { children } = $props();
 
@@ -118,29 +120,31 @@
 	<a href="/services" class="text-primary text-sm hover:underline">← Services</a>
 </p>
 
-<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
+<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
 	<div class="min-w-0">
 		{#if loading}
-			<h2 class="text-xl font-semibold tracking-tight">Service …</h2>
+			<h1 class="text-2xl font-bold tracking-tight">Service …</h1>
 		{:else if service}
-			<h2 class="text-xl font-semibold tracking-tight">
-				{service.name}
-			</h2>
-			<h4>
-				<p class="text-muted-foreground font-normal">Version: {service.version}</p>
-			</h4>
-			<p class="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
-				<code class="bg-muted rounded px-1 py-0.5 font-mono">{service.id}</code>
-				{#if service.organizationId}
-					· <OrganizationBadge organizationName={service.organizationId} />
-				{/if}
-				· <ServiceTypeBadge type={service.type} />
+			<div class="flex flex-wrap items-center gap-6">
+				<h1 class="text-2xl font-bold tracking-tight">
+					{service.name}
+				</h1>
+				<ServiceTypeBadge type={service.type} />
+			</div>
+			<p class="text-muted-foreground mt-1 text-sm font-normal">
+				Version: <b>{service.version}</b>
 			</p>
+			{#if service.organizationId}
+				<div class="mt-3">
+					<OrganizationBadge organizationName={service.organizationId} />
+				</div>
+			{/if}
 		{:else}
-			<h2 class="text-xl font-semibold tracking-tight">Service {serviceId}</h2>
+			<h1 class="text-2xl font-bold tracking-tight">Service {serviceId}</h1>
 		{/if}
 	</div>
 	<Button variant="destructive" disabled={loading} onclick={() => void onDelete()}>
+		<HugeiconsIcon icon={Delete02Icon} size={16} />
 		Delete service
 	</Button>
 </div>

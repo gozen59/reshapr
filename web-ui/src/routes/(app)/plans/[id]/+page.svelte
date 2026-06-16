@@ -123,7 +123,7 @@
 </p>
 
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-	<h2 class="text-xl font-semibold tracking-tight">Plan {id}</h2>
+	<h1 class="text-2xl font-bold tracking-tight">Plan {id}</h1>
 	<div class="flex flex-wrap gap-2">
 		<Button variant="outline" onclick={() => void onRenew()}>Renew API key</Button>
 		<Button variant="destructive" onclick={() => void onDelete()}>Delete</Button>
