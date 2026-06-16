@@ -72,15 +72,15 @@
 </svelte:head>
 
 <PageHeader title="Dashboard">
+	{#snippet subtitle()}
+		Welcome back, <strong>{auth.user?.username}</strong>. You're working in the
+		<strong>{auth.user?.org}</strong> organization.
+	{/snippet}
 	{#snippet actions()}
 		<Button variant="outline" disabled={loading} onclick={() => void load()}>Refresh</Button>
 	{/snippet}
 </PageHeader>
 
-<p class="text-muted-foreground mb-4">
-	Welcome back, <strong>{auth.user?.username}</strong>.
-	You're working in the <strong>{auth.user?.org}</strong> organization.
-</p>
 
 {#if error}
 	<ApiErrorAlert message={error} />

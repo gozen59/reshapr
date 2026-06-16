@@ -37,6 +37,7 @@
   } from '@hugeicons/core-free-icons';
   import { Badge } from "$lib/components/ui/badge";
   import UsersTab from './UsersTab.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
 
   // ── Types ──────────────────────────────────────────────────
   interface Organization {
@@ -299,27 +300,35 @@
 
 <div class="space-y-6">
   <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight">Organizations</h1>
-      <p class="text-sm text-muted-foreground">Manage organizations and users in the reShapr control plane.</p>
-    </div>
-
-    {#if activeTab === 'organizations'}
-      <Button onclick={openOrgDrawer}>New Organization</Button>
-    {:else if activeTab === 'users' && auth.authMode === 'reshapr'}
-      <Button onclick={() => usersTabRef?.openUserDrawer()}>New User</Button>
-    {/if}
-  </div>
+  <PageHeader
+    title="Organizations"
+    subtitle="Manage organizations and users in the reShapr control plane."
+  >
+    {#snippet actions()}
+      {#if activeTab === 'organizations'}
+        <Button onclick={openOrgDrawer}>New Organization</Button>
+      {:else if activeTab === 'users' && auth.authMode === 'reshapr'}
+        <Button onclick={() => usersTabRef?.openUserDrawer()}>New User</Button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   <!-- Tabs -->
   <Tabs bind:value={activeTab}>
-    <TabsList>
-      <TabsTrigger value="organizations">
+    <TabsList
+      class="mb-6 h-auto w-full justify-start gap-1 rounded-none border-b border-border bg-transparent p-0 pb-3"
+    >
+      <TabsTrigger
+        value="organizations"
+        class="flex-none rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-active:bg-primary/10 data-active:font-medium data-active:text-primary data-active:shadow-none"
+      >
         <HugeiconsIcon icon={Building01Icon} size={16} />
         Organizations
       </TabsTrigger>
-      <TabsTrigger value="users">
+      <TabsTrigger
+        value="users"
+        class="flex-none rounded-lg px-3 py-2 text-sm font-normal text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-active:bg-primary/10 data-active:font-medium data-active:text-primary data-active:shadow-none"
+      >
         <HugeiconsIcon icon={UserGroupIcon} size={16} />
         Users
       </TabsTrigger>

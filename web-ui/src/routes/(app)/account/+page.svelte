@@ -50,11 +50,10 @@
 </svelte:head>
 
 <div>
-  <PageHeader title="Account" />
-
-  <p class="text-muted-foreground mb-6 text-sm">
-    Profile information is read from your server session. The control plane validates access on each API call.
-  </p>
+  <PageHeader
+    title="Account"
+    subtitle="Profile information is read from your server session. The control plane validates access on each API call."
+  />
 
   {#if !auth.user}
     <Alert.Root variant="destructive">

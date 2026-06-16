@@ -17,10 +17,12 @@
 <script lang="ts">
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
+	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ServiceTypeBadge from '$lib/components/ServiceTypeBadge.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { auth } from '$lib/stores/auth.svelte.js';
 
 	type Service = {
 		id: string;
@@ -28,6 +30,7 @@
 		version: string;
 		type: string;
 		createdOn: string;
+		organizationId: string | null;
 	};
 
 	let services = $state<Service[]>([]);
@@ -55,23 +58,10 @@
 			name: typeof o.name === 'string' ? o.name : '—',
 			version: typeof o.version === 'string' ? o.version : '—',
 			type: pickType(o.type),
-			createdOn
+			createdOn,
+			organizationId: typeof o.organizationId === 'string' ? o.organizationId : null
 		};
 	}
-
-	function formatDate(iso: string): string {
-		if (!iso) return '—';
-		try {
-			return new Date(iso).toLocaleDateString(undefined, {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric'
-			});
-		} catch {
-			return iso;
-		}
-	}
-
 
 	async function load() {
 		loading = true;
@@ -97,15 +87,12 @@
 	<title>Services — reShapr</title>
 </svelte:head>
 
-<PageHeader title="Services">
+<PageHeader title="Services" subtitle="API services registered in your organization.">
 	{#snippet actions()}
 		<Button variant="outline" disabled={loading} onclick={() => void load()}>Refresh</Button>
 	{/snippet}
 </PageHeader>
 
-<p class="text-muted-foreground mb-6 text-sm">
-	API services registered in your organization.
-</p>
 
 {#if loading}
 	<div class="flex justify-center py-12">
@@ -143,11 +130,13 @@
 						</Card.Description>
 					</Card.Header>
 					<Card.Content class="pt-0">
-						<div class="text-muted-foreground space-y-1 text-xs">
-							<p>Created {formatDate(service.createdOn)}</p>
-							<p class="truncate">
+						<div class="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+							<p class="min-w-0 truncate">
 								<code class="bg-muted rounded px-1 py-0.5 font-mono">{service.id}</code>
 							</p>
+							{#if auth.isAdmin && service.organizationId}
+								<OrganizationBadge organizationName={service.organizationId} />
+							{/if}
 						</div>
 					</Card.Content>
 				</Card.Root>

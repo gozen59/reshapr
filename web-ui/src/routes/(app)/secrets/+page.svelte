@@ -54,23 +54,22 @@
 </script>
 
 <PageHeader title="Secrets">
+	{#snippet subtitle()}
+		Same data as <code class="text-xs">reshapr secret list</code> via
+		<code class="text-xs">GET /api/v1/secrets/refs</code> — see
+		<a
+			href="https://github.com/reshaprio/reshapr/blob/main/cli/src/commands/secret.ts"
+			target="_blank"
+			rel="noreferrer"
+			class="text-primary hover:underline"
+		>
+			cli/src/commands/secret.ts
+		</a>.
+	{/snippet}
 	{#snippet actions()}
 		<Button variant="outline" onclick={() => void load()}>Refresh</Button>
 	{/snippet}
 </PageHeader>
-
-<p class="text-muted-foreground mb-4 text-sm">
-	Same data as <code class="text-xs">reshapr secret list</code> via
-	<code class="text-xs">GET /api/v1/secrets/refs</code> — see
-	<a
-		href="https://github.com/reshaprio/reshapr/blob/main/cli/src/commands/secret.ts"
-		target="_blank"
-		rel="noreferrer"
-		class="text-primary hover:underline"
-	>
-		cli/src/commands/secret.ts
-	</a>.
-</p>
 
 {#if error}
 	<ApiErrorAlert message={error} />

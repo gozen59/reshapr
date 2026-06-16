@@ -16,162 +16,189 @@
 
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { apiClient } from '$lib/api/client.js';
-	import JsonBlock from '$lib/components/JsonBlock.svelte';
-	import { loadServiceHubSummary, type ServiceHubSummary } from '$lib/serviceHub.js';
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import { cn } from '$lib/utils.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 
 	const ctx = getContext<ServiceContextValue>(SERVICE_CONTEXT_KEY);
 
-	let payloadOpen = $state(false);
-	let summary = $state<ServiceHubSummary | null>(null);
-	let summaryError = $state<string | null>(null);
-	let summaryLoading = $state(false);
+	type ServiceOperation = {
+		name: string;
+		method: string | null;
+		action: string | null;
+		inputName: string | null;
+		outputName: string | null;
+	};
 
-	async function loadSummary() {
-		if (!ctx.id) return;
-		summaryLoading = true;
-		summaryError = null;
+	function str(v: unknown): string | null {
+		return typeof v === 'string' && v.trim() !== '' ? v : null;
+	}
+
+	const operations = $derived.by<ServiceOperation[]>(() => {
+		const raw = ctx.raw as Record<string, unknown> | null;
+		const ops = raw && Array.isArray(raw.operations) ? raw.operations : [];
+		return ops
+			.map((o): ServiceOperation | null => {
+				if (!o || typeof o !== 'object') return null;
+				const r = o as Record<string, unknown>;
+				if (typeof r.name !== 'string') return null;
+				return {
+					name: r.name,
+					method: str(r.method),
+					action: str(r.action),
+					// The API schema carries a typo ("intputName"); accept both spellings.
+					inputName: str(r.inputName) ?? str(r.intputName),
+					outputName: str(r.outputName)
+				};
+			})
+			.filter((o): o is ServiceOperation => o != null);
+	});
+
+	let query = $state('');
+
+	const filtered = $derived.by<ServiceOperation[]>(() => {
+		const q = query.trim().toLowerCase();
+		if (!q) return operations;
+		return operations.filter(
+			(o) =>
+				o.name.toLowerCase().includes(q) ||
+				(o.method?.toLowerCase().includes(q) ?? false) ||
+				(o.action?.toLowerCase().includes(q) ?? false) ||
+				(o.inputName?.toLowerCase().includes(q) ?? false) ||
+				(o.outputName?.toLowerCase().includes(q) ?? false)
+		);
+	});
+
+	const createdOn = $derived.by<string | null>(() => {
+		const raw = ctx.raw as Record<string, unknown> | null;
+		return raw ? (str(raw.createdOn) ?? str(raw.created)) : null;
+	});
+
+	function formatDate(iso: string | null): string {
+		if (!iso) return '—';
 		try {
-			summary = await loadServiceHubSummary(ctx.id, apiClient());
-		} catch (e) {
-			summary = null;
-			summaryError = e instanceof Error ? e.message : String(e);
-		} finally {
-			summaryLoading = false;
+			return new Date(iso).toLocaleString(undefined, {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return iso;
 		}
 	}
 
-	$effect(() => {
-		if (ctx.id && !ctx.loading && ctx.service) {
-			void loadSummary();
-		}
-	});
+	// Color-coded pill per HTTP verb; unknown labels (e.g. gRPC actions) fall back to neutral.
+	const METHOD_STYLES: Record<string, string> = {
+		GET: 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-400',
+		POST: 'bg-blue-500/10 text-blue-600 ring-blue-500/20 dark:text-blue-400',
+		PUT: 'bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:text-amber-400',
+		PATCH: 'bg-violet-500/10 text-violet-600 ring-violet-500/20 dark:text-violet-400',
+		DELETE: 'bg-rose-500/10 text-rose-600 ring-rose-500/20 dark:text-rose-400'
+	};
 
-	function fmtCount(n: number | null | undefined): string {
-		if (summaryLoading) return '…';
-		if (n == null) return '—';
-		return String(n);
+	function methodStyle(label: string | null): string {
+		const key = (label ?? '').toUpperCase();
+		return METHOD_STYLES[key] ?? 'bg-muted text-muted-foreground ring-border';
 	}
 </script>
 
-{#if summaryError}
-	<p class="text-destructive mb-4 text-sm">{summaryError}</p>
-{/if}
-
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">Artifacts</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmtCount(summary?.artifactCount)}</p>
-			<Button variant="link" class="mt-2 h-auto p-0 text-xs" href="/services/{ctx.id}/artifacts">
-				View artifacts
-			</Button>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">Configuration plans</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmtCount(summary?.planCount)}</p>
-			<Button variant="link" class="mt-2 h-auto p-0 text-xs" href="/services/{ctx.id}/plans">
-				View plans
-			</Button>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">Expositions</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">
-				{fmtCount(summary?.expositionActiveCount)}
-				<span class="text-muted-foreground text-lg font-normal">
-					/ {fmtCount(summary?.expositionAllCount)} total
-				</span>
-			</p>
-			<p class="text-muted-foreground text-xs">Active / all</p>
-			<Button variant="link" class="mt-2 h-auto p-0 text-xs" href="/services/{ctx.id}/expositions">
-				View expositions
-			</Button>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">MCP custom tools</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmtCount(summary?.mcpCustomToolsCount)}</p>
-			<Button
-				variant="link"
-				class="mt-2 h-auto p-0 text-xs"
-				href="/services/{ctx.id}/mcp-custom-tools"
+<dl class="mb-8 grid gap-4 sm:grid-cols-2">
+	<div>
+		<dt class="text-muted-foreground text-xs">Service ID</dt>
+		<dd class="mt-1">
+			<code class="text-muted-foreground bg-muted rounded px-1 py-0.5 font-mono text-sm break-all"
+				>{ctx.id}</code
 			>
-				View tools
-			</Button>
-		</Card.Content>
-	</Card.Root>
+		</dd>
+	</div>
+	<div>
+		<dt class="text-muted-foreground text-xs">Created on</dt>
+		<dd class="mt-1 text-sm">{ctx.loading ? '…' : formatDate(createdOn)}</dd>
+	</div>
+</dl>
 
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">MCP prompts</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmtCount(summary?.mcpPromptsCount)}</p>
-			<Button variant="link" class="mt-2 h-auto p-0 text-xs" href="/services/{ctx.id}/mcp-prompts">
-				View prompts
-			</Button>
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header class="pb-2">
-			<Card.Title class="text-sm font-medium">MCP endpoints</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<p class="text-3xl font-bold tracking-tight">{fmtCount(summary?.mcpUrlCount)}</p>
-			<p class="text-muted-foreground text-xs">From active expositions</p>
-		</Card.Content>
-	</Card.Root>
-
-	{#if ctx.service}
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium">API operations</Card.Title>
-			</Card.Header>
-			<Card.Content>
-				<p class="text-3xl font-bold tracking-tight">{ctx.service.operationsCount}</p>
-				<p class="text-muted-foreground text-xs">Registered on service</p>
-			</Card.Content>
-		</Card.Root>
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+	<div class="flex items-baseline gap-2">
+		<h3 class="text-base font-semibold">Operations</h3>
+		{#if !ctx.loading}
+			<span class="text-muted-foreground text-sm">
+				{#if query.trim()}
+					{filtered.length} / {operations.length}
+				{:else}
+					{operations.length} operation{operations.length === 1 ? '' : 's'}
+				{/if}
+			</span>
+		{/if}
+	</div>
+	{#if !ctx.loading && operations.length > 0}
+		<div class="relative w-full sm:w-64">
+			<SearchIcon
+				class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+			/>
+			<Input bind:value={query} placeholder="Filter operations…" class="pl-8" />
+		</div>
 	{/if}
 </div>
 
-<Collapsible.Root bind:open={payloadOpen} class="mt-8 rounded-lg border">
-	<Collapsible.Trigger
-		class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-muted/50"
-		type="button"
+{#if ctx.loading}
+	<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		{#each Array(6) as _, i (i)}
+			<div class="bg-muted/40 h-28 animate-pulse rounded-xl border"></div>
+		{/each}
+	</div>
+{:else if operations.length === 0}
+	<div
+		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
 	>
-		<span>Service payload</span>
-		<ChevronDownIcon
-			class={cn(
-				'text-muted-foreground size-4 shrink-0 transition-transform duration-200',
-				payloadOpen && 'rotate-180'
-			)}
-		/>
-	</Collapsible.Trigger>
-	<Collapsible.Content class="border-t px-4 pb-4 pt-3">
-		<JsonBlock value={ctx.raw} loading={ctx.loading} />
-	</Collapsible.Content>
-</Collapsible.Root>
+		<p class="text-sm">No operations registered on this service.</p>
+	</div>
+{:else if filtered.length === 0}
+	<div
+		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
+	>
+		<p class="text-sm">No operation matches “{query}”.</p>
+	</div>
+{:else}
+	<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		{#each filtered as op (op.name)}
+			{@const pillLabel = op.method ?? op.action}
+			<div
+				class="group hover:border-primary/40 relative flex flex-col gap-3 rounded-xl border p-4 transition-all hover:shadow-sm"
+			>
+				<div class="flex items-start justify-between gap-2">
+					{#if pillLabel}
+						<span
+							class={cn(
+								'inline-flex items-center rounded-md px-2 py-0.5 font-mono text-xs font-bold uppercase ring-1 ring-inset',
+								methodStyle(op.method ?? op.action)
+							)}
+						>
+							{pillLabel}
+						</span>
+					{/if}
+					{#if op.method && op.action}
+						<span class="text-muted-foreground text-xs">{op.action}</span>
+					{/if}
+				</div>
+
+				<h4 class="leading-snug font-semibold break-all">{op.name}</h4>
+
+				{#if op.inputName || op.outputName}
+					<div
+						class="text-muted-foreground flex items-center gap-2 font-mono text-xs"
+						title="{op.inputName ?? '—'} → {op.outputName ?? '—'}"
+					>
+						<span class="truncate">{op.inputName ?? '—'}</span>
+						<ArrowRightIcon class="size-3.5 shrink-0 opacity-60" />
+						<span class="truncate">{op.outputName ?? '—'}</span>
+					</div>
+				{/if}
+			</div>
+		{/each}
+	</div>
+{/if}
+
