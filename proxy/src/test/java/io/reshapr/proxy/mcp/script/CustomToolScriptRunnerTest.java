@@ -394,6 +394,42 @@ class CustomToolScriptRunnerTest {
          throw new RuntimeException(e);
       }
    }
+
+   // ---------------------------------------------------------------------------------------------
+   // Failure signaling: throw and rs.fail.
+   // ---------------------------------------------------------------------------------------------
+
+   @Test
+   void testScriptThrowIsSurfacedAsErrorContent() {
+      GatewayRegistry registry = new GatewayRegistry();
+      ServiceEntry service = service();
+      ReshaprToolsBuiltins builtins = new ReshaprToolsBuiltins(service, registry,
+            gitHubUserExecutor(registry), Map.of(), List.of());
+
+      CustomToolScriptRunner runner = new CustomToolScriptRunner(MAPPER);
+      CustomToolScriptRunner.CustomToolScriptException ex = assertThrows(
+            CustomToolScriptRunner.CustomToolScriptException.class,
+            () -> runner.run("throw new Error('boom happened');", Map.of(), builtins));
+
+      assertTrue(ex.errorContent().contains("boom happened"), "Unexpected error content: " + ex.errorContent());
+   }
+
+   @Test
+   void testRsFailProducesStructuredError() throws Exception {
+      GatewayRegistry registry = new GatewayRegistry();
+      ServiceEntry service = service();
+      ReshaprToolsBuiltins builtins = new ReshaprToolsBuiltins(service, registry,
+            gitHubUserExecutor(registry), Map.of(), List.of());
+
+      CustomToolScriptRunner runner = new CustomToolScriptRunner(MAPPER);
+      CustomToolScriptRunner.CustomToolScriptException ex = assertThrows(
+            CustomToolScriptRunner.CustomToolScriptException.class,
+            () -> runner.run("rs.fail('quota exceeded', { retryAfter: 30 });", Map.of(), builtins));
+
+      Map<String, Object> content = parse(ex.errorContent());
+      assertEquals("quota exceeded", content.get("message"));
+      assertEquals(30, ((Number) ((Map<?, ?>) content.get("data")).get("retryAfter")).intValue());
+   }
 }
 
 

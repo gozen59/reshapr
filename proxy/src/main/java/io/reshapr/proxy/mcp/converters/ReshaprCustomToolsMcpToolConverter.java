@@ -231,8 +231,7 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
                                   Map<String, List<String>> headers) {
       if (toolCallExecutor == null || gatewayRegistry == null) {
          logger.errorf("Cannot execute script custom tool '%s': executor/registry not available", operation.name());
-         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
-               + "\"message\":\"Script execution context is not available\"}}", true);
+         return new Response("Script execution context is not available", true);
       }
 
       // Guard-rail: bound cross-script recursion depth.
@@ -240,8 +239,7 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
       if (parentDepth >= toolCallExecutor.scriptMaxDepth()) {
          logger.warnf("Maximum script nesting depth (%d) reached for tool '%s'",
                toolCallExecutor.scriptMaxDepth(), operation.name());
-         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
-               + "\"message\":\"Maximum script nesting depth reached\"}}", true);
+         return new Response("Maximum script nesting depth reached", true);
       }
 
       String script = customToolNode.path(SCRIPT_NODE).asText();
@@ -254,10 +252,13 @@ public class ReshaprCustomToolsMcpToolConverter extends McpToolConverter {
       try {
          String result = runner.run(script, request.arguments(), builtins, parentDepth + 1);
          return new Response(result, false);
+      } catch (CustomToolScriptRunner.CustomToolScriptException e) {
+         // A thrown error (or rs.fail) becomes an MCP tool error, surfacing the script-provided content.
+         logger.warnf("Script custom tool '%s' failed: %s", operation.name(), e.getMessage());
+         return new Response(e.errorContent(), true);
       } catch (Exception e) {
          logger.errorf(e, "Exception while running script custom tool '%s'", operation.name());
-         return new Response("{\"ok\":false,\"content\":null,\"error\":{\"code\":-32603,"
-               + "\"message\":\"Script execution failed\"}}", true);
+         return new Response("Script execution failed", true);
       }
    }
 
