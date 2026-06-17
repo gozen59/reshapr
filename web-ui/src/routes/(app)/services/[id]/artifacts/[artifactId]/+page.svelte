@@ -20,13 +20,16 @@
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import {
 		artifactTypeLabel,
+		buildTemplate,
 		getKindDefinition,
+		getKindForArtifactType,
 		isEditableArtifactType,
 		parseArtifactDetail,
 		type ArtifactType,
 		type ReshaprArtifactKind
 	} from '$lib/artifacts/index.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
+	import YamlMonacoEditor from '$lib/components/YamlMonacoEditor.svelte';
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -45,8 +48,26 @@
 	let loading = $state(false);
 	let artifactName = $state<string | null>(null);
 	let artifactType = $state<ArtifactType | null>(null);
+	let artifactContent = $state('');
 
 	const listHref = $derived(`/services/${ctx.id}/artifacts`);
+
+	const schemaUri = $derived(
+		isCreate
+			? createKindDef?.schemaPath
+			: artifactType
+				? getKindForArtifactType(artifactType)?.schemaPath
+				: undefined
+	);
+
+	const editorValue = $derived(
+		isCreate
+			? buildTemplate(createKind, {
+					name: ctx.service?.name ?? '—',
+					version: ctx.service?.version ?? '—'
+				})
+			: artifactContent
+	);
 
 	async function loadArtifact() {
 		if (isCreate || !artifactId) return;
@@ -54,6 +75,7 @@
 		error = null;
 		artifactName = null;
 		artifactType = null;
+		artifactContent = '';
 		try {
 			const raw = await apiClient().getArtifact(artifactId);
 			const detail = parseArtifactDetail(raw);
@@ -63,6 +85,7 @@
 			}
 			artifactName = detail.name;
 			artifactType = detail.type;
+			artifactContent = detail.content ?? '';
 		} catch (e) {
 			error = e instanceof ApiError ? e.message : String(e);
 		} finally {
@@ -90,7 +113,7 @@
 	<ApiErrorAlert message={error} />
 {/if}
 
-<Card.Root>
+<Card.Root class="mb-4">
 	<Card.Header>
 		<Card.Title>
 			{#if isCreate}
@@ -103,25 +126,23 @@
 		</Card.Title>
 		<Card.Description>
 			{#if isCreate}
-				YAML editor and save flow ship in release 2–4 of this feature branch.
+				Template preview (read-only). Save flow ships in release 4.
 			{:else if artifactType}
 				Type: {artifactTypeLabel(artifactType)}
 				{#if !isEditableArtifactType(artifactType)}
 					<Badge variant="outline" class="ml-2">Read-only</Badge>
+				{:else}
+					<Badge variant="secondary" class="ml-2">Read-only preview</Badge>
 				{/if}
-			{:else}
-				Placeholder until the Monaco editor lands (release 2+).
+			{:else if !loading}
+				YAML source
 			{/if}
 		</Card.Description>
 	</Card.Header>
-	<Card.Content class="text-muted-foreground text-sm">
-		{#if isCreate}
-			<p>
-				Kind <code class="text-xs">{createKind}</code> selected. The unified editor will open here in
-				<code class="text-xs">release4</code>.
-			</p>
-		{:else}
-			<p>Artifact <code class="text-xs">{artifactId}</code> — view and edit UI coming in release 2+.</p>
-		{/if}
-	</Card.Content>
 </Card.Root>
+
+{#if isCreate || (!loading && !error)}
+	<YamlMonacoEditor value={editorValue} readOnly={true} {schemaUri} height="min(70vh, 32rem)" />
+{:else if loading}
+	<p class="text-muted-foreground text-sm">Loading artifact content…</p>
+{/if}
