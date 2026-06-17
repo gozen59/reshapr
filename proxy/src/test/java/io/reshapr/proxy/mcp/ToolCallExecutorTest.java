@@ -25,6 +25,7 @@ import io.reshapr.proxy.registry.GatewayRegistry;
 import io.reshapr.proxy.registry.OperationEntry;
 import io.reshapr.proxy.registry.SecretEntry;
 import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +56,8 @@ class ToolCallExecutorTest {
    }
 
    private static ToolCallExecutor newExecutor(GatewayRegistry registry, ElicitationStore store) {
-      ToolCallExecutor executor = new ToolCallExecutor(registry, store, new WorkCache(1000), new ProxyService(), null);
+      ToolCallExecutor executor = new ToolCallExecutor(registry, store, new WorkCache(1000),
+            new ProxyService(new SecretReferenceResolver(java.util.List.of())), null);
       executor.fqdns = List.of("localhost:7777");
       return executor;
    }
