@@ -262,7 +262,6 @@
 	{#snippet actions()}
 		<Button variant="outline" disabled={loading} onclick={() => void load()}>Refresh</Button>
 		<Button onclick={openCreate} disabled={!canCreate} title={canCreate ? undefined : 'Quota reached'}>
-			<PlusIcon class="size-4" />
 			New group
 		</Button>
 	{/snippet}

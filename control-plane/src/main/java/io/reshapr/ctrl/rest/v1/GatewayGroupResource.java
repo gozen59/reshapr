@@ -119,7 +119,11 @@ public class GatewayGroupResource {
       if (gatewayGroup == null) {
          return Response.status(Response.Status.NOT_FOUND).build();
       }
-      gatewayGroup = v1Mappers.fromResource(gatewayGroupDTO);
+      // Map new values from DTO - we cannot use MapStruct here because we'd have a detached entity.
+      // We need to preserve id and organizationId.
+      gatewayGroup.name = gatewayGroupDTO.name();
+      gatewayGroup.labels = gatewayGroupDTO.labels();
+
       gatewayGroupRepository.persist(gatewayGroup);
       return Response.ok(v1Mappers.toResource(gatewayGroup)).build();
    }
