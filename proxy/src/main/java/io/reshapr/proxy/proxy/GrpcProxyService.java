@@ -19,6 +19,7 @@ import io.reshapr.proxy.context.MethodHandlingContext;
 import io.reshapr.proxy.context.SessionInfo;
 import io.reshapr.proxy.registry.ConfigurationEntry;
 import io.reshapr.proxy.registry.SecretEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 import io.reshapr.proxy.security.TokenCallCredentials;
 
 import com.google.protobuf.Descriptors;
@@ -77,8 +78,18 @@ public class GrpcProxyService {
    private static final List<String> RESTRICTED_HEADERS = List.of("host", "connection", "accept",
          "content-type", "content-length", "user-agent");
 
+   private final SecretReferenceResolver secretResolver;
+
    @ConfigProperty(name = "reshapr.gateway.backend.grpc.default-timeout")
    Long defaultBackendTimeout;
+
+   /**
+    * Build a GrpcProxyService with required dependencies.
+    * @param secretResolver The resolver used to resolve secret references locally on the gateway.
+    */
+   public GrpcProxyService(SecretReferenceResolver secretResolver) {
+      this.secretResolver = secretResolver;
+   }
 
    /**
     * @param configuration The configuration entry containing backend security details.
@@ -96,7 +107,7 @@ public class GrpcProxyService {
          logger.debugf("Proxy request url: '%s'", endpoint);
          logger.debugf("Proxy request method: '%s'", md.getFullName());
          logger.debugf("Proxy request headers: '%s'", headers);
-         logger.debugf("Proxy request body: '%s'", body);
+         logger.tracef("Proxy request body: '%s'", body);
       }
 
       ManagedChannel originChannel;
@@ -104,7 +115,8 @@ public class GrpcProxyService {
          TlsChannelCredentials.Builder tlsBuilder = TlsChannelCredentials.newBuilder();
          if (configuration.backendSecret() != null && configuration.backendSecret().certPem() != null) {
             // Install a trust manager with custom CA certificate.
-            tlsBuilder.trustManager(new ByteArrayInputStream(configuration.backendSecret().certPem().getBytes(StandardCharsets.UTF_8)));
+            String certPem = secretResolver.resolve(configuration.backendSecret().certPem());
+            tlsBuilder.trustManager(new ByteArrayInputStream(certPem.getBytes(StandardCharsets.UTF_8)));
          }
          // Build a Channel using the TLS Builder.
          originChannel = Grpc.newChannelBuilderForAddress(endpoint.getHost(), endpoint.getPort(), tlsBuilder.build())
@@ -152,7 +164,7 @@ public class GrpcProxyService {
 
          if (logger.isDebugEnabled()) {
             logger.debugf("Proxy returned: '%s'", Status.Code.OK.name());
-            logger.debugf("Proxy response body: '%s'", new String(responseBytes, StandardCharsets.UTF_8));
+            logger.tracef("Proxy response body: '%s'", new String(responseBytes, StandardCharsets.UTF_8));
          }
 
          String contentResponse;
@@ -223,7 +235,8 @@ public class GrpcProxyService {
          // Set the authentication token as call credentials if provided in the configuration.
          if (secret.token() != null) {
             logger.debug("Secret contains token and maybe token header, adding them as call credentials");
-            callOptions = callOptions.withCallCredentials(new TokenCallCredentials(secret.token(), secret.tokenHeader()));
+            String token = secretResolver.resolve(secret.token());
+            callOptions = callOptions.withCallCredentials(new TokenCallCredentials(token, secret.tokenHeader()));
 
             // Remove the token header from the request headers if it exists,
             String headerToRemove = secret.tokenHeader() != null

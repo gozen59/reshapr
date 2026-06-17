@@ -20,6 +20,7 @@ import io.reshapr.proxy.mcp.state.ElicitationStore;
 import io.reshapr.proxy.context.SessionInfo;
 import io.reshapr.proxy.mcp.state.SessionStore;
 import io.reshapr.proxy.registry.SecretEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 import io.reshapr.proxy.util.WebUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,6 +51,7 @@ public class ElicitationController {
 
    private final ElicitationStore elicitationStore;
    private final SessionStore sessionStore;
+   private final SecretReferenceResolver secretResolver;
 
    @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
@@ -58,10 +60,13 @@ public class ElicitationController {
     * Creates a new ElicitationController with required stores.
     * @param elicitationStore The elicitations store
     * @param sessionStore The sessions store
+    * @param secretResolver The resolver used to resolve secret references locally on the gateway
     */
-   public ElicitationController(ElicitationStore elicitationStore, SessionStore sessionStore) {
+   public ElicitationController(ElicitationStore elicitationStore, SessionStore sessionStore,
+                                SecretReferenceResolver secretResolver) {
       this.elicitationStore = elicitationStore;
       this.sessionStore = sessionStore;
+      this.secretResolver = secretResolver;
    }
 
    @CheckedTemplate
@@ -192,9 +197,11 @@ public class ElicitationController {
       // Now exchange the authorization code for an access token calling the token endpoint.
       String accessToken = null;
       try {
+         // Resolve the client secret reference (e.g. ${env:VAR}) locally on the gateway if needed.
+         String clientSecret = secretResolver.resolve(secret.oauth2ClientConfiguration().clientSecret());
          accessToken = OidcUtils.exchangeAuthorizationCode(
                new OidcUtils.OidcEndpointConfig(secret.oauth2ClientConfiguration().tokenEndpoint(),
-                     secret.oauth2ClientConfiguration().clientId(), secret.oauth2ClientConfiguration().clientSecret()),
+                     secret.oauth2ClientConfiguration().clientId(), clientSecret),
                new ObjectMapper(), authorizationCode, redirectUri);
       } catch (AuthenticationException e) {
          logger.errorf("OAuth2 token exchange fails with '%s' for elicitation id '%s'", e.getMessage(), elicitationId);

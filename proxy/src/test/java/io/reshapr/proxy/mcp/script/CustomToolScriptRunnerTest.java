@@ -23,6 +23,7 @@ import io.reshapr.proxy.mcp.state.ElicitationStore;
 import io.reshapr.proxy.proxy.ProxyService;
 import io.reshapr.proxy.registry.GatewayRegistry;
 import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -56,7 +57,8 @@ class CustomToolScriptRunnerTest {
 
    /** An executor that echoes back the called tool and arguments as a JSON content. */
    private static ToolCallExecutor echoExecutor(GatewayRegistry registry) {
-      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000), new ProxyService(), null) {
+      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000),
+            new ProxyService(new SecretReferenceResolver(java.util.List.of())), null) {
          @Override
          public ToolCallOutcome execute(ServiceEntry service, String toolName, Map<String, Object> arguments,
                                         Map<String, List<String>> headers) {
@@ -246,7 +248,7 @@ class CustomToolScriptRunnerTest {
 
    /** A simulated executor returning a GraphQL-shaped `user` response honoring the relation sizes. */
    private static ToolCallExecutor gitHubUserExecutor(GatewayRegistry registry) {
-      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000), new ProxyService(), null) {
+      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000), new ProxyService(new io.reshapr.proxy.secret.SecretReferenceResolver(java.util.List.of())), null) {
          @Override
          public ToolCallOutcome execute(ServiceEntry service, String toolName, Map<String, Object> arguments,
                                         Map<String, List<String>> headers) {
@@ -309,7 +311,7 @@ class CustomToolScriptRunnerTest {
 
    /** An executor that echoes back the current script nesting depth. */
    private static ToolCallExecutor depthProbeExecutor(GatewayRegistry registry) {
-      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000), new ProxyService(), null) {
+      return new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000), new ProxyService(new io.reshapr.proxy.secret.SecretReferenceResolver(java.util.List.of())), null) {
          @Override
          public ToolCallOutcome execute(ServiceEntry service, String toolName, Map<String, Object> arguments,
                                         Map<String, List<String>> headers) {
@@ -363,7 +365,7 @@ class CustomToolScriptRunnerTest {
 
       // An executor whose call blocks longer than the configured timeout.
       ToolCallExecutor slow = new ToolCallExecutor(registry, stubElicitationStore(), new WorkCache(1000),
-            new ProxyService(), null) {
+            new ProxyService(new io.reshapr.proxy.secret.SecretReferenceResolver(java.util.List.of())), null) {
          @Override
          public ToolCallOutcome execute(ServiceEntry s, String toolName, Map<String, Object> arguments,
                                         Map<String, List<String>> headers) {

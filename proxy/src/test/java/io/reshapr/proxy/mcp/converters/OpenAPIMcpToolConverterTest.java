@@ -17,12 +17,12 @@ package io.reshapr.proxy.mcp.converters;
 
 import io.reshapr.proxy.mcp.McpSchema;
 import io.reshapr.proxy.mcp.WorkCache;
-import io.reshapr.proxy.mcp.converters.OpenAPIMcpToolConverter;
 import io.reshapr.proxy.proxy.ProxyService;
 import io.reshapr.proxy.registry.ArtifactEntry;
 import io.reshapr.proxy.registry.ArtifactEntryType;
 import io.reshapr.proxy.registry.OperationEntry;
 import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
@@ -64,7 +64,7 @@ class OpenAPIMcpToolConverterTest {
       ObjectMapper objectMapper = new ObjectMapper();
 
       OpenAPIMcpToolConverter converter = new OpenAPIMcpToolConverter(serviceEntry, artifactEntry, null,
-            new WorkCache(1000), objectMapper, new ProxyService());
+            new WorkCache(1000), objectMapper, new ProxyService(new SecretReferenceResolver(java.util.List.of())));
 
       for (OperationEntry operation : operations) {
          McpSchema.JsonSchema schema = converter.getInputSchema(operation);

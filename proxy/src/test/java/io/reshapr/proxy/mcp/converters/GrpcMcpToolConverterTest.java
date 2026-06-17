@@ -17,12 +17,12 @@ package io.reshapr.proxy.mcp.converters;
 
 import io.reshapr.proxy.mcp.McpSchema;
 import io.reshapr.proxy.mcp.WorkCache;
-import io.reshapr.proxy.mcp.converters.GrpcMcpToolConverter;
 import io.reshapr.proxy.proxy.GrpcProxyService;
 import io.reshapr.proxy.registry.ArtifactEntry;
 import io.reshapr.proxy.registry.ArtifactEntryType;
 import io.reshapr.proxy.registry.OperationEntry;
 import io.reshapr.proxy.registry.ServiceEntry;
+import io.reshapr.proxy.secret.SecretReferenceResolver;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,7 +53,7 @@ class GrpcMcpToolConverterTest {
       ObjectMapper objectMapper = new ObjectMapper();
 
       GrpcMcpToolConverter converter = new GrpcMcpToolConverter(serviceEntry, artifactEntry,
-            new WorkCache(100), objectMapper, new GrpcProxyService());
+            new WorkCache(100), objectMapper, new GrpcProxyService(new SecretReferenceResolver(java.util.List.of())));
 
       McpSchema.JsonSchema schema = converter.getInputSchema(new OperationEntry("CreateDocument", null, null, null, null));
 
