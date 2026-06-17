@@ -35,6 +35,7 @@
     SidebarLeft01Icon,
     SidebarRight01Icon,
     SquareLock02Icon,
+    TagsIcon,
     UserIcon
   } from '@hugeicons/core-free-icons';
 
@@ -51,7 +52,6 @@
     { href: '/expositions', label: 'Expositions' },
     { href: '/mcp-custom-tools', label: 'MCP custom tools' },
     { href: '/mcp-prompts', label: 'MCP prompts' },
-    { href: '/gateway-groups', label: 'Gateway groups' },
     { href: '/quotas', label: 'Quotas' },
     { href: '/api-tokens', label: 'API tokens' },
   ] as const;
@@ -94,7 +94,8 @@
       title: 'Catalog',
       items: [
         { href: '/secrets', label: 'Secrets', icon: SquareLock02Icon },
-        { href: '/services', label: 'Services', icon: ApiIcon }
+        { href: '/services', label: 'Services', icon: ApiIcon },
+        { href: '/gateway-groups', label: 'Gateway Groups', icon: TagsIcon }
       ]
     },
     {

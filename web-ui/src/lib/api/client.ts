@@ -156,6 +156,12 @@ export function apiClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       }),
+    updateGatewayGroup: (id: string, body: unknown) =>
+      json<unknown>(`/api/v1/gatewayGroups/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }),
     deleteGatewayGroup: (id: string) => empty(`/api/v1/gatewayGroups/${id}`, { method: 'DELETE' }),
 
     getQuotas: () => json<unknown>('/api/v1/quotas'),
