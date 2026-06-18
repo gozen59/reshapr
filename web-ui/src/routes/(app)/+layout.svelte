@@ -22,6 +22,7 @@
   import { sidebar } from '$lib/stores/sidebar.svelte.js';
   import { getBootstrapConfig } from '$lib/api/config.js';
   import { cn } from '$lib/utils.js';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import * as Collapsible from '$lib/components/ui/collapsible/index.js';
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import {
@@ -332,10 +333,8 @@
           class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-sidebar-accent/50
             {sidebar.collapsed ? 'justify-center' : ''}"
         >
-          <!-- Avatar with initials -->
-          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            {auth.initials}
-          </span>
+          <!-- Avatar with Gravatar fallback to initials -->
+          <UserAvatar email={auth.user?.email} initials={auth.initials} size={32} />
           {#if !sidebar.collapsed}
             <div class="flex-1 text-left min-w-0">
               <div class="truncate font-medium text-sidebar-foreground">{auth.user?.username}</div>
