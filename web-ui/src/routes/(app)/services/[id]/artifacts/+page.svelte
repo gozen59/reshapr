@@ -17,17 +17,71 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { apiClient, ApiError } from '$lib/api/client.js';
-	import { parseArtifactRefList, type ArtifactRef } from '$lib/artifacts/index.js';
+	import {
+		artifactTypeLabel,
+		EDITABLE_KINDS,
+		isEditableArtifactType,
+		matchesTypeFilter,
+		parseArtifactRefList,
+		TYPE_FILTER_OPTIONS,
+		type ArtifactRef,
+		type ArtifactTypeFilter,
+		type ReshaprArtifactKind
+	} from '$lib/artifacts/index.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
-	import ArtifactListTable from '$lib/components/ArtifactListTable.svelte';
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Table from '$lib/components/ui/table/index.js';
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuTrigger
+	} from '$lib/components/ui/dropdown-menu/index.js';
+	import MoreVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
+	import EyeIcon from '@lucide/svelte/icons/eye';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
 
 	const ctx = getContext<ServiceContextValue>(SERVICE_CONTEXT_KEY);
 
 	let artifacts = $state<ArtifactRef[]>([]);
 	let error = $state<string | null>(null);
 	let loading = $state(true);
+
+	let typeFilter = $state<ArtifactTypeFilter>('all');
+	let createKind = $state<ReshaprArtifactKind>('Prompts');
+
+	const filterLabel = $derived(
+		TYPE_FILTER_OPTIONS.find((opt) => opt.value === typeFilter)?.label ?? 'All types'
+	);
+
+	const createKindLabel = $derived(
+		EDITABLE_KINDS.find((def) => def.kind === createKind)?.label ?? createKind
+	);
+
+	const filtered = $derived(
+		artifacts.filter((artifact) => matchesTypeFilter(artifact, typeFilter))
+	);
+
+	function artifactHref(id: string): string {
+		return `/services/${ctx.id}/artifacts/${id}`;
+	}
+
+	function createHref(): string {
+		return `/services/${ctx.id}/artifacts/new?kind=${encodeURIComponent(createKind)}`;
+	}
+
+	function isUrl(value: string): boolean {
+		try {
+			const url = new URL(value);
+			return url.protocol === 'http:' || url.protocol === 'https:';
+		} catch {
+			return false;
+		}
+	}
 
 	async function load() {
 		if (!ctx.id) return;
@@ -63,4 +117,144 @@
 	<ApiErrorAlert message={error} />
 {/if}
 
-<ArtifactListTable serviceId={ctx.id} {artifacts} {loading} />
+<div class="mb-4 flex flex-wrap items-end justify-between gap-4">
+	<div class="space-y-2">
+		<Label for="artifact-type-filter">Filter by type</Label>
+		<Select.Root type="single" bind:value={typeFilter}>
+			<Select.Trigger id="artifact-type-filter" class="w-[min(100%,16rem)]">
+				{filterLabel}
+			</Select.Trigger>
+			<Select.Content>
+				{#each TYPE_FILTER_OPTIONS as opt (opt.value)}
+					<Select.Item value={opt.value}>{opt.label}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	</div>
+
+	<div class="flex flex-wrap items-end gap-2">
+		<div class="space-y-2">
+			<Label for="artifact-create-kind">New custom artifact</Label>
+			<Select.Root type="single" bind:value={createKind}>
+				<Select.Trigger id="artifact-create-kind" class="w-[min(100%,14rem)]">
+					{createKindLabel}
+				</Select.Trigger>
+				<Select.Content>
+					{#each EDITABLE_KINDS as def (def.kind)}
+						<Select.Item value={def.kind}>{def.label}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+		<Button href={createHref()} class="mb-0">Create</Button>
+	</div>
+</div>
+
+<div class="rounded-lg border">
+	<Table.Root>
+		<Table.Header>
+			<Table.Row>
+				<Table.Head>ID</Table.Head>
+				<Table.Head>Name</Table.Head>
+				<Table.Head>Type</Table.Head>
+				<Table.Head>Role</Table.Head>
+				<Table.Head>Source</Table.Head>
+				<Table.Head class="w-16 text-right">Actions</Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#if loading}
+				<Table.Row>
+					<Table.Cell colspan={6} class="text-muted-foreground">Loading…</Table.Cell>
+				</Table.Row>
+			{:else if filtered.length === 0}
+				<Table.Row>
+					<Table.Cell colspan={6} class="text-muted-foreground">
+						{artifacts.length === 0
+							? 'No artifacts for this service.'
+							: 'No artifacts match this filter.'}
+					</Table.Cell>
+				</Table.Row>
+			{:else}
+				{#each filtered as artifact (artifact.id)}
+					<Table.Row>
+						<Table.Cell>
+							<code
+								class="text-muted-foreground bg-muted rounded px-1 py-0.5 font-mono text-xs break-all"
+								>{artifact.id}</code
+							>
+						</Table.Cell>
+						<Table.Cell class="font-medium">{artifact.name}</Table.Cell>
+						<Table.Cell>
+							<span class="text-sm">{artifactTypeLabel(artifact.type)}</span>
+						</Table.Cell>
+						<Table.Cell>
+							{#if artifact.mainArtifact}
+								<Badge variant="default">Main</Badge>
+							{:else}
+								<Badge variant="secondary">Attached</Badge>
+							{/if}
+							{#if !isEditableArtifactType(artifact.type)}
+								<Badge variant="outline" class="ml-1">Read-only</Badge>
+							{/if}
+						</Table.Cell>
+						<Table.Cell
+							class="text-muted-foreground max-w-48 truncate text-sm"
+							title={artifact.sourceArtifact ?? undefined}
+						>
+							{#if artifact.sourceArtifact}
+								{#if isUrl(artifact.sourceArtifact)}
+									<a
+										href={artifact.sourceArtifact}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-primary hover:underline"
+									>
+										<code class="font-mono text-xs break-all">{artifact.sourceArtifact}</code>
+									</a>
+								{:else}
+									<code class="bg-muted rounded px-1 py-0.5 font-mono text-xs break-all"
+										>{artifact.sourceArtifact}</code
+									>
+								{/if}
+							{:else}
+								—
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="text-right">
+							<DropdownMenu>
+								<DropdownMenuTrigger>
+									{#snippet child({ props })}
+										<Button variant="ghost" size="icon" {...props}>
+											<MoreVerticalIcon class="size-4" />
+										</Button>
+									{/snippet}
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem>
+										{#snippet child({ props })}
+											<a href={artifactHref(artifact.id)} class="px-4" {...props}>
+												<EyeIcon class="size-4" />
+												View
+											</a>
+										{/snippet}
+									</DropdownMenuItem>
+									{#if isEditableArtifactType(artifact.type)}
+										<DropdownMenuItem>
+											{#snippet child({ props })}
+												<a href={artifactHref(artifact.id)} class="px-4" {...props}>
+													<PencilIcon class="size-4" />
+													Edit
+												</a>
+											{/snippet}
+										</DropdownMenuItem>
+									{/if}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			{/if}
+		</Table.Body>
+	</Table.Root>
+</div>
