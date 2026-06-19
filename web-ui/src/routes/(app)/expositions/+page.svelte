@@ -15,22 +15,41 @@
   -->
 
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { apiClient, ApiError } from '$lib/api/client.js';
+	import { quotaEntry } from '$lib/dashboardStatsCompute.js';
+	import { avatarColor, avatarInitials } from '$lib/avatarColor.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
+	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import QuotaGauge, { type QuotaInfo } from '$lib/components/QuotaGauge.svelte';
+	import { auth } from '$lib/stores/auth.svelte.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import { formatRelativeAge } from '$lib/utils/relativeAge.js';
+	import {
+		Sheet,
+		SheetContent,
+		SheetHeader,
+		SheetTitle,
+		SheetDescription,
+		SheetFooter,
+		SheetClose
+	} from '$lib/components/ui/sheet/index.js';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { CloudServerIcon, Copy01Icon, Link01Icon, McpServerIcon, Tick02Icon } from '@hugeicons/core-free-icons';
+
+	const QUOTA_METRIC = 'exposition.count';
 
 	type ExpoRow = {
 		id: string;
+		serviceName: string;
 		service: string;
 		backend: string;
 		endpoints: string;
-		age: string;
+		endpointUrls: string[];
+		organizationId: string | null;
 	};
 
 	let mode = $state<'active' | 'all'>('active');
@@ -38,6 +57,17 @@
 	let error = $state<string | null>(null);
 	let planId = $state('1');
 	let ggId = $state('1');
+
+	// ── Quota state ───────────────────────────────────────────
+	let quota = $state<QuotaInfo>(null);
+	// When no quota entry is returned, creation is not restricted.
+	const canCreate = $derived(quota === null || quota.remaining > 0);
+
+	function serviceName(service: unknown): string {
+		if (!service || typeof service !== 'object') return '';
+		const s = service as Record<string, unknown>;
+		return typeof s.name === 'string' ? s.name : '';
+	}
 
 	function serviceLabel(service: unknown): string {
 		if (!service || typeof service !== 'object') return '—';
@@ -76,32 +106,91 @@
 		return '—';
 	}
 
+	/** Collect the unique FQDNs declared by all gateways of an exposition. */
+	function gatewayFqdns(raw: Record<string, unknown>): string[] {
+		const gws = raw.gateways;
+		const all: string[] = [];
+		if (Array.isArray(gws)) {
+			for (const g of gws) {
+				if (g && typeof g === 'object') {
+					const fq = (g as Record<string, unknown>).fqdns;
+					if (Array.isArray(fq)) {
+						for (const f of fq) {
+							if (typeof f === 'string' && f && !all.includes(f)) all.push(f);
+						}
+					}
+				}
+			}
+		}
+		return all;
+	}
+
+	/**
+	 * Build the public MCP endpoint URL for a gateway FQDN, following the
+	 * convention <scheme>://<fqdn>/mcp/<org>/<serviceName>/<serviceVersion>.
+	 * localhost hosts use http://, everything else uses https://.
+	 */
+	function formatEndpointUrl(
+		fqdn: string,
+		organizationId: string,
+		serviceName: string,
+		serviceVersion: string
+	): string {
+		let base: string;
+		if (/^https?:\/\//i.test(fqdn)) {
+			base = fqdn;
+		} else {
+			const host = fqdn.split(/[:/]/, 1)[0].toLowerCase();
+			const scheme = host === 'localhost' || host === '127.0.0.1' ? 'http' : 'https';
+			base = `${scheme}://${fqdn}`;
+		}
+		const enc = (s: string) => s.replace(/\s/g, '+');
+		return `${base}/mcp/${organizationId}/${enc(serviceName)}/${enc(serviceVersion)}`;
+	}
+
+	function buildEndpointUrls(o: Record<string, unknown>): string[] {
+		const svc = o.service;
+		if (!svc || typeof svc !== 'object') return [];
+		const s = svc as Record<string, unknown>;
+		const name = typeof s.name === 'string' ? s.name : '';
+		const version = typeof s.version === 'string' ? s.version : '';
+		const org = typeof o.organizationId === 'string' ? o.organizationId : '';
+		if (!name || !org) return [];
+		return gatewayFqdns(o).map((fqdn) => formatEndpointUrl(fqdn, org, name, version));
+	}
+
 	function toExpoRow(raw: unknown): ExpoRow | null {
 		if (!raw || typeof raw !== 'object') return null;
 		const o = raw as Record<string, unknown>;
 		if (typeof o.id !== 'string') return null;
-		const created =
-			typeof o.createdOn === 'string'
-				? o.createdOn
-				: typeof o.created === 'string'
-					? o.created
-					: undefined;
 		return {
 			id: o.id,
+			serviceName: serviceName(o.service),
 			service: serviceLabel(o.service),
 			backend: backendUrl(o.configurationPlan),
 			endpoints: endpointsLabel(o),
-			age: formatRelativeAge(created)
+			endpointUrls: buildEndpointUrls(o),
+			organizationId: typeof o.organizationId === 'string' ? o.organizationId : null
 		};
+	}
+
+	async function refreshQuota() {
+		try {
+			quota = quotaEntry(await apiClient().getQuotas(), QUOTA_METRIC);
+		} catch {
+			// Non-critical: leave quota as-is so the UI stays usable.
+		}
 	}
 
 	async function load() {
 		error = null;
 		try {
-			const data =
+			const [data] = await Promise.all([
 				mode === 'active'
-					? ((await apiClient().listExpositionsActive()) as unknown[])
-					: ((await apiClient().listExpositionsAll()) as unknown[]);
+					? (apiClient().listExpositionsActive() as Promise<unknown[]>)
+					: (apiClient().listExpositionsAll() as Promise<unknown[]>),
+				refreshQuota()
+			]);
 			const list = Array.isArray(data) ? data : [];
 			rows = list.map(toExpoRow).filter((r): r is ExpoRow => r != null);
 		} catch (e) {
@@ -114,22 +203,82 @@
 		void load();
 	});
 
+	// Copy an endpoint URL to the clipboard, tracking the last-copied value so
+	// the button can briefly show a confirmation icon.
+	let copiedUrl = $state<string | null>(null);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function copyUrl(url: string) {
+		try {
+			await navigator.clipboard.writeText(url);
+			copiedUrl = url;
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copiedUrl = null), 1500);
+		} catch {
+			// Clipboard may be unavailable (e.g. insecure context); ignore.
+		}
+	}
+
+	// ── Create drawer state ───────────────────────────────────
+	let drawerOpen = $state(false);
+	let submitting = $state(false);
+	let formError = $state('');
+
+	// Work around a bits-ui body-scroll-lock issue (see secrets/gateway-groups
+	// pages): force-unfreeze the body after the dialog close restore window
+	// whenever the drawer is closed.
+	$effect(() => {
+		if (drawerOpen) return;
+		const unfreeze = () => {
+			if (document.body.style.pointerEvents === 'none') {
+				document.body.style.removeProperty('pointer-events');
+				document.body.style.removeProperty('overflow');
+			}
+		};
+		const timers = [50, 200].map((d) => setTimeout(unfreeze, d));
+		return () => timers.forEach(clearTimeout);
+	});
+
+	function resetForm() {
+		planId = '1';
+		ggId = '1';
+		formError = '';
+	}
+
+	// Force a clean open transition so the drawer reliably reopens even if a
+	// previous user-initiated close left `drawerOpen` out of sync.
+	async function openDrawer() {
+		drawerOpen = false;
+		await tick();
+		drawerOpen = true;
+	}
+
+	function openCreate() {
+		if (!canCreate) return;
+		resetForm();
+		void openDrawer();
+	}
+
 	async function onCreate(ev: SubmitEvent) {
 		ev.preventDefault();
-		error = null;
+		formError = '';
+		submitting = true;
 		try {
 			await apiClient().createExposition({
 				configurationPlanId: planId.trim(),
 				gatewayGroupId: ggId.trim()
 			});
+			drawerOpen = false;
 			await load();
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : String(e);
+			formError = e instanceof ApiError ? e.message : String(e);
+		} finally {
+			submitting = false;
 		}
 	}
 </script>
 
-<PageHeader title="Expositions">
+<PageHeader title="MCP Servers" subtitle="Expositions of your services as MCP servers.">
 	{#snippet actions()}
 		<div class="flex flex-wrap items-center gap-4">
 			<label class="flex items-center gap-2 text-sm">
@@ -141,33 +290,166 @@
 				All
 			</label>
 			<Button variant="outline" onclick={() => void load()}>Refresh</Button>
+			<Button onclick={openCreate} disabled={!canCreate} title={canCreate ? undefined : 'Quota reached'}>
+				New MCP Server
+			</Button>
 		</div>
 	{/snippet}
 </PageHeader>
 
-<Card.Root class="mb-6">
-	<Card.Header>
-		<Card.Title>Create exposition</Card.Title>
-		<Card.Description>
-			The client sends <code class="text-xs">POST /api/v1/expositions</code> with a JSON body that only
-			includes two required properties:
-		</Card.Description>
-	</Card.Header>
-	<Card.Content class="space-y-4">
-		<ul class="text-muted-foreground list-inside list-disc text-sm">
-			<li>
-				<code class="text-xs">configurationPlanId</code> — id of the configuration plan (see
-				<a href="/plans" class="text-primary hover:underline">Plans</a>).
-			</li>
-			<li>
-				<code class="text-xs">gatewayGroupId</code> — id of the gateway group (see
-				<a href="/gateway-groups" class="text-primary hover:underline">Gateway groups</a>).
-			</li>
-		</ul>
-		<p class="text-muted-foreground text-sm">
-			Other server-side DTO fields are not entered here: the control plane sets them on create.
-		</p>
-		<form class="space-y-4" onsubmit={onCreate}>
+{#if quota}
+	<div class="mb-4">
+		<QuotaGauge
+			{quota}
+			label="MCP server quota"
+			fullMessage="Quota reached. Delete an existing MCP server to create a new one."
+		/>
+	</div>
+{/if}
+
+
+{#if error}
+	<ApiErrorAlert message={error} />
+{/if}
+
+{#if rows.length === 0 && !error}
+	<div
+		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
+	>
+		<p class="text-sm">No MCP servers yet.</p>
+		<Button class="mt-3" size="sm" onclick={openCreate} disabled={!canCreate}>
+			Create your first MCP server
+		</Button>
+	</div>
+{:else}
+	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		{#each rows as x (x.id)}
+			<a href="/expositions/{x.id}" class="block">
+				<Card.Root
+					class="flex h-full flex-col transition-colors hover:border-primary/50 hover:bg-accent/50"
+				>
+					<Card.Header class="flex-1">
+						<div class="flex min-w-0 items-start gap-3">
+							<!-- Service initials badge, colored from the reShapr-derived palette -->
+							<span
+								class="flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white"
+								style="background-color: {avatarColor(x.serviceName || x.service)};"
+								aria-hidden="true"
+							>
+								{avatarInitials(x.serviceName || x.service)}
+							</span>
+							<div class="min-w-0 flex-1">
+								<Card.Title class="text-base leading-snug break-all">
+									{x.service}
+								</Card.Title>
+								<Card.Description class="mt-1 truncate">
+									<code class="bg-muted rounded px-1 py-0.5 font-mono text-xs">{x.id}</code>
+								</Card.Description>
+							</div>
+							<span
+								class="text-muted-foreground/70 shrink-0"
+								aria-hidden="true"
+								title="MCP Server"
+							>
+								<HugeiconsIcon icon={McpServerIcon} size={20} />
+							</span>
+						</div>
+					</Card.Header>
+					<Card.Content class="space-y-3 pt-0 text-xs">
+						<!-- Backend endpoint -->
+						<div class="flex items-start gap-2">
+							<HugeiconsIcon
+								icon={CloudServerIcon}
+								size={16}
+								class="text-muted-foreground mt-0.5 shrink-0"
+							/>
+							<code
+								class="min-w-0 flex-1 truncate rounded px-1.5 py-0.5 font-mono"
+								title={x.backend}
+							>
+								{x.backend}
+							</code>
+						</div>
+
+						<!-- MCP endpoint URLs -->
+						<div class="flex items-start gap-2">
+							<HugeiconsIcon
+								icon={Link01Icon}
+								size={16}
+								class="text-muted-foreground mt-0.5 shrink-0"
+							/>
+							{#if x.endpointUrls.length === 0}
+								<span class="text-muted-foreground">No active endpoint</span>
+							{:else}
+								<div class="flex min-w-0 flex-1 flex-col gap-1">
+									{#each x.endpointUrls as url (url)}
+										<div class="flex min-w-0 items-center gap-1">
+											<code class="min-w-0 flex-1 truncate font-mono" title={url}>
+												{url}
+											</code>
+											<button
+												type="button"
+												class="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5 transition-colors"
+												title="Copy URL"
+												aria-label="Copy URL"
+												onclick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													void copyUrl(url);
+												}}
+											>
+												<HugeiconsIcon
+													icon={copiedUrl === url ? Tick02Icon : Copy01Icon}
+													size={14}
+													class={copiedUrl === url ? 'text-primary' : ''}
+												/>
+											</button>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+
+						{#if auth.isAdmin && x.organizationId}
+							<div class="flex justify-end">
+								<OrganizationBadge organizationName={x.organizationId} />
+							</div>
+						{/if}
+					</Card.Content>
+				</Card.Root>
+			</a>
+		{/each}
+	</div>
+{/if}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Create MCP Server Drawer                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<Sheet bind:open={drawerOpen}>
+	<SheetContent side="right" class="flex flex-col sm:max-w-lg">
+		<SheetHeader>
+			<SheetTitle>Create MCP server</SheetTitle>
+			<SheetDescription>
+				The client sends <code class="text-xs">POST /api/v1/expositions</code> with a JSON body that only
+				includes two required properties.
+			</SheetDescription>
+		</SheetHeader>
+
+		<form onsubmit={onCreate} class="flex-1 space-y-4 overflow-y-auto px-4">
+			<ul class="text-muted-foreground list-inside list-disc text-sm">
+				<li>
+					<code class="text-xs">configurationPlanId</code> — id of the configuration plan (see
+					<a href="/plans" class="text-primary hover:underline">Plans</a>).
+				</li>
+				<li>
+					<code class="text-xs">gatewayGroupId</code> — id of the gateway group (see
+					<a href="/gateway-groups" class="text-primary hover:underline">Gateway groups</a>).
+				</li>
+			</ul>
+			<p class="text-muted-foreground text-sm">
+				Other server-side DTO fields are not entered here: the control plane sets them on create.
+			</p>
+
 			<div class="space-y-2">
 				<Label for="expo-configurationPlanId"><code class="text-xs">configurationPlanId</code></Label>
 				<Input
@@ -190,44 +472,31 @@
 					spellcheck={false}
 				/>
 			</div>
-			<Button type="submit">Create</Button>
+
+			{#if formError}
+				<div class="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm">
+					{formError}
+				</div>
+			{/if}
+
+			<SheetFooter class="pt-4">
+				<SheetClose>
+					{#snippet child({ props })}
+						<Button variant="outline" type="button" {...props}>Cancel</Button>
+					{/snippet}
+				</SheetClose>
+				<Button type="submit" disabled={submitting}>
+					{#if submitting}
+						<div
+							class="border-primary-foreground h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+						></div>
+						Creating…
+					{:else}
+						Create MCP server
+					{/if}
+				</Button>
+			</SheetFooter>
 		</form>
-	</Card.Content>
-</Card.Root>
+	</SheetContent>
+</Sheet>
 
-{#if error}
-	<ApiErrorAlert message={error} />
-{/if}
-
-<div class="rounded-lg border">
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>ID</Table.Head>
-				<Table.Head>SERVICE</Table.Head>
-				<Table.Head>BACKEND</Table.Head>
-				<Table.Head>ENDPOINTS</Table.Head>
-				<Table.Head>AGE</Table.Head>
-				<Table.Head class="w-[100px]" />
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each rows as x (x.id)}
-				<Table.Row>
-					<Table.Cell><code class="text-xs">{x.id}</code></Table.Cell>
-					<Table.Cell class="max-w-[200px] truncate" title={x.service}>{x.service}</Table.Cell>
-					<Table.Cell class="max-w-[200px] truncate" title={x.backend}>{x.backend}</Table.Cell>
-					<Table.Cell>{x.endpoints}</Table.Cell>
-					<Table.Cell>{x.age}</Table.Cell>
-					<Table.Cell>
-						<Button variant="outline" size="sm" href="/expositions/{x.id}">Details</Button>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-</div>
-
-{#if rows.length === 0 && !error}
-	<p class="text-muted-foreground mt-4 text-sm">No expositions.</p>
-{/if}

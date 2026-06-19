@@ -22,6 +22,7 @@
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import QuotaGauge from '$lib/components/QuotaGauge.svelte';
 	import { auth } from '$lib/stores/auth.svelte.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -48,8 +49,6 @@
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import PlusIcon from '@lucide/svelte/icons/plus';
-	import GaugeIcon from '@lucide/svelte/icons/gauge';
-	import { cn } from '$lib/utils.js';
 
 	const QUOTA_METRIC = 'gateway-group.count';
 
@@ -73,30 +72,6 @@
 	// When no quota entry is returned, creation is not restricted.
 	const canCreate = $derived(quota === null || quota.remaining > 0);
 
-	// Quota gauge visuals: percentage used and severity-based highlight styling.
-	const quotaPercent = $derived(
-		quota && quota.limit > 0 ? Math.min(100, Math.round((quota.used / quota.limit) * 100)) : 0
-	);
-	const quotaSeverity = $derived<'ok' | 'warn' | 'full'>(
-		quota === null
-			? 'ok'
-			: quota.remaining <= 0
-				? 'full'
-				: quota.remaining <= 1 || quotaPercent >= 80
-					? 'warn'
-					: 'ok'
-	);
-	const quotaStyles = {
-		ok: { box: 'border-primary/30 bg-primary/5 text-primary', bar: 'bg-primary' },
-		warn: {
-			box: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-			bar: 'bg-amber-500'
-		},
-		full: {
-			box: 'border-destructive/40 bg-destructive/10 text-destructive',
-			bar: 'bg-destructive'
-		}
-	} as const;
 
 	const filtered = $derived(
 		query.trim() === ''
@@ -274,38 +249,12 @@
 {/if}
 
 {#if quota}
-	<div
-		class={cn(
-			'mb-4 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between',
-			quotaStyles[quotaSeverity].box
-		)}
-	>
-		<div class="flex items-center gap-3">
-			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-current/10">
-				<GaugeIcon class="size-5" />
-			</span>
-			<div>
-				<div class="text-sm font-semibold">
-					Gateway group quota — {quota.used} / {quota.limit} used
-				</div>
-				<div class="text-xs opacity-80">
-					{#if quota.remaining <= 0}
-						Quota reached. Delete an existing group to create a new one.
-					{:else}
-						{quota.remaining} remaining
-					{/if}
-				</div>
-			</div>
-		</div>
-		<div class="flex items-center gap-3 sm:w-64">
-			<div class="h-2 flex-1 overflow-hidden rounded-full bg-current/15">
-				<div
-					class={cn('h-full rounded-full transition-all', quotaStyles[quotaSeverity].bar)}
-					style="width: {quotaPercent}%"
-				></div>
-			</div>
-			<span class="font-mono text-sm font-semibold tabular-nums">{quotaPercent}%</span>
-		</div>
+	<div class="mb-4">
+		<QuotaGauge
+			{quota}
+			label="Gateway group quota"
+			fullMessage="Quota reached. Delete an existing group to create a new one."
+		/>
 	</div>
 {/if}
 
