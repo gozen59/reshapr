@@ -17,6 +17,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ensureMonacoYaml } from '$lib/monaco/setup.js';
+	import { artifactModelUri } from '$lib/monaco/schemas.js';
 	import ScrollableCode from '$lib/components/ScrollableCode.svelte';
 	import type * as Monaco from 'monaco-editor';
 
@@ -31,7 +32,7 @@
 		value?: string;
 		readOnly?: boolean;
 		height?: string;
-		/** Reserved for release 3 JSON Schema completion. */
+		/** Public path to the JSON Schema (e.g. `/schemas/Prompts-v1alpha1-schema.json`). */
 		schemaUri?: string;
 		onChange?: (value: string) => void;
 		onValidationChange?: (markers: Monaco.editor.IMarker[]) => void;
@@ -42,12 +43,17 @@
 	let model = $state<Monaco.editor.ITextModel | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
+	let validationMarkers = $state<Monaco.editor.IMarker[]>([]);
 
 	const heightStyle = $derived(typeof height === 'number' ? `${height}px` : height);
+	const schemaErrors = $derived(validationMarkers.filter((marker) => marker.severity === 8));
+	const showValidationSummary = $derived(schemaUri !== undefined && validationMarkers.length > 0);
 
 	function emitValidation(monaco: typeof Monaco) {
-		if (!model || !onValidationChange) return;
-		onValidationChange(monaco.editor.getModelMarkers({ resource: model.uri }));
+		if (!model) return;
+		const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+		validationMarkers = markers;
+		onValidationChange?.(markers);
 	}
 
 	onMount(() => {
@@ -62,7 +68,7 @@
 				if (disposed || !container) return;
 
 				const uri = monaco.Uri.parse(
-					`inmemory://reshapr/${schemaUri ?? 'artifact'}/${crypto.randomUUID()}.yaml`
+					schemaUri ? artifactModelUri(schemaUri) : `inmemory://reshapr/artifact/${crypto.randomUUID()}.yaml`
 				);
 				const textModel = monaco.editor.createModel(value, 'yaml', uri);
 				model = textModel;
@@ -87,14 +93,12 @@
 					});
 				}
 
-				if (onValidationChange) {
-					markerDisposable = monaco.editor.onDidChangeMarkers((uris) => {
-						if (uris.some((u) => u.toString() === textModel.uri.toString())) {
-							emitValidation(monaco);
-						}
-					});
-					emitValidation(monaco);
-				}
+				markerDisposable = monaco.editor.onDidChangeMarkers((uris) => {
+					if (uris.some((u) => u.toString() === textModel.uri.toString())) {
+						emitValidation(monaco);
+					}
+				});
+				emitValidation(monaco);
 			} catch (e) {
 				loadError = e instanceof Error ? e.message : String(e);
 			} finally {
@@ -141,4 +145,23 @@
 			</div>
 		{/if}
 	</div>
+	{#if showValidationSummary}
+		<div class="border-destructive/30 bg-destructive/5 mt-2 rounded-md border px-3 py-2 text-xs">
+			<p class="text-destructive font-medium">
+				{schemaErrors.length > 0
+					? `${schemaErrors.length} schema ${schemaErrors.length === 1 ? 'error' : 'errors'}`
+					: `${validationMarkers.length} schema ${validationMarkers.length === 1 ? 'warning' : 'warnings'}`}
+			</p>
+			<ul class="text-muted-foreground mt-1 space-y-0.5">
+				{#each validationMarkers.slice(0, 5) as marker (marker.message + marker.startLineNumber)}
+					<li>
+						Line {marker.startLineNumber}: {marker.message}
+					</li>
+				{/each}
+				{#if validationMarkers.length > 5}
+					<li>…and {validationMarkers.length - 5} more</li>
+				{/if}
+			</ul>
+		</div>
+	{/if}
 {/if}

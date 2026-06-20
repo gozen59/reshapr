@@ -16,6 +16,7 @@
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import YamlWorker from './yaml.worker.js?worker';
+import { loadMonacoYamlSchemas } from './schemas.js';
 
 import type * as Monaco from 'monaco-editor';
 
@@ -38,7 +39,7 @@ function configureWorkers(): void {
 	};
 }
 
-/** Client-only Monaco + YAML language registration (schemas wired in release 3). */
+/** Client-only Monaco + YAML language registration with JSON Schema validation. */
 export async function ensureMonacoYaml(): Promise<typeof Monaco> {
 	if (monacoPromise) return monacoPromise;
 
@@ -47,10 +48,14 @@ export async function ensureMonacoYaml(): Promise<typeof Monaco> {
 		await import('monaco-editor/min/vs/editor/editor.main.css');
 		const monaco = await import('monaco-editor');
 		const { configureMonacoYaml } = await import('monaco-yaml');
+		const schemas = await loadMonacoYamlSchemas();
 
 		configureMonacoYaml(monaco, {
-			enableSchemaRequest: true,
-			schemas: []
+			enableSchemaRequest: false,
+			validate: true,
+			completion: true,
+			hover: true,
+			schemas
 		});
 
 		return monaco;

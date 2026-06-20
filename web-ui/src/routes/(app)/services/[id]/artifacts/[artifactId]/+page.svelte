@@ -126,7 +126,7 @@
 		</Card.Title>
 		<Card.Description>
 			{#if isCreate}
-				Template preview (read-only). Save flow ships in release 4.
+				Template preview with JSON Schema validation and completion (read-only). Save flow ships in release 4.
 			{:else if artifactType}
 				Type: {artifactTypeLabel(artifactType)}
 				{#if !isEditableArtifactType(artifactType)}
@@ -134,6 +134,7 @@
 				{:else}
 					<Badge variant="secondary" class="ml-2">Read-only preview</Badge>
 				{/if}
+				— JSON Schema validation and completion enabled.
 			{:else if !loading}
 				YAML source
 			{/if}
