@@ -3,6 +3,9 @@
   "version": "0.0.14-SNAPSHOT",
   "private": true,
   "scripts": {
+    "copy-schemas": "node scripts/copy-schemas.mjs",
+    "predev": "npm run copy-schemas",
+    "prebuild": "npm run copy-schemas",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
