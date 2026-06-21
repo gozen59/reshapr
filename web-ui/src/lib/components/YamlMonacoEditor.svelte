@@ -47,11 +47,14 @@
 
 	const heightStyle = $derived(typeof height === 'number' ? `${height}px` : height);
 	const schemaErrors = $derived(validationMarkers.filter((marker) => marker.severity === 8));
-	const showValidationSummary = $derived(schemaUri !== undefined && validationMarkers.length > 0);
+	const yamlMarkers = $derived(validationMarkers);
+	const showValidationSummary = $derived(
+		schemaUri !== undefined && yamlMarkers.length > 0
+	);
 
 	function emitValidation(monaco: typeof Monaco) {
 		if (!model) return;
-		const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+		const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: 'yaml' });
 		validationMarkers = markers;
 		onValidationChange?.(markers);
 	}
@@ -99,6 +102,8 @@
 					}
 				});
 				emitValidation(monaco);
+				// YAML worker validation is async on first open — refresh markers once settled.
+				window.setTimeout(() => emitValidation(monaco), 400);
 			} catch (e) {
 				loadError = e instanceof Error ? e.message : String(e);
 			} finally {
@@ -118,7 +123,9 @@
 	});
 
 	$effect(() => {
-		if (!editor || !model) return;
+		// When onChange is wired (editable mode), the model is the source of truth — do not push
+		// prop updates on every keystroke or monaco-yaml validation/completion breaks.
+		if (!editor || !model || onChange) return;
 		const current = model.getValue();
 		if (value !== current) {
 			model.setValue(value);
@@ -150,16 +157,16 @@
 			<p class="text-destructive font-medium">
 				{schemaErrors.length > 0
 					? `${schemaErrors.length} schema ${schemaErrors.length === 1 ? 'error' : 'errors'}`
-					: `${validationMarkers.length} schema ${validationMarkers.length === 1 ? 'warning' : 'warnings'}`}
+					: `${yamlMarkers.length} schema ${yamlMarkers.length === 1 ? 'warning' : 'warnings'}`}
 			</p>
 			<ul class="text-muted-foreground mt-1 space-y-0.5">
-				{#each validationMarkers.slice(0, 5) as marker (marker.message + marker.startLineNumber)}
+				{#each yamlMarkers.slice(0, 5) as marker (marker.message + marker.startLineNumber)}
 					<li>
 						Line {marker.startLineNumber}: {marker.message}
 					</li>
 				{/each}
-				{#if validationMarkers.length > 5}
-					<li>…and {validationMarkers.length - 5} more</li>
+				{#if yamlMarkers.length > 5}
+					<li>…and {yamlMarkers.length - 5} more</li>
 				{/if}
 			</ul>
 		</div>

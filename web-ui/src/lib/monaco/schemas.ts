@@ -17,31 +17,43 @@
 import { EDITABLE_KINDS } from '$lib/artifacts/kinds.js';
 import type { SchemasSettings } from 'monaco-yaml';
 
+import customToolsSchema from '../../../static/schemas/CustomTools-v1alpha1-schema.json';
+import promptsSchema from '../../../static/schemas/Prompts-v1alpha1-schema.json';
+import resourcesSchema from '../../../static/schemas/Resources-v1alpha1-schema.json';
+import toolsOutputFiltersSchema from '../../../static/schemas/ToolsOutputFilters-v1alpha1-schema.json';
+
+const SCHEMA_BY_PATH: Record<string, Record<string, unknown>> = {
+	'/schemas/Prompts-v1alpha1-schema.json': promptsSchema,
+	'/schemas/CustomTools-v1alpha1-schema.json': customToolsSchema,
+	'/schemas/Resources-v1alpha1-schema.json': resourcesSchema,
+	'/schemas/ToolsOutputFilters-v1alpha1-schema.json': toolsOutputFiltersSchema
+};
+
+function schemaSlug(schemaPath: string): string {
+	return schemaPath.replace(/^\/schemas\//, '').replace(/-schema\.json$/, '');
+}
+
 /** Glob matched against the Monaco model URI (see `artifactModelUri`). */
 export function schemaFileMatch(schemaPath: string): string {
-	const fileName = schemaPath.replace(/^\/schemas\//, '');
-	return `inmemory://reshapr/schemas/${fileName}/**`;
+	return `/reshapr-artifact/${schemaSlug(schemaPath)}/**`;
 }
 
 /** Stable URI namespace so monaco-yaml can bind the right JSON Schema per kind. */
 export function artifactModelUri(schemaPath: string): string {
-	const fileName = schemaPath.replace(/^\/schemas\//, '');
-	return `inmemory://reshapr/schemas/${fileName}/${crypto.randomUUID()}.yaml`;
+	return `file:///reshapr-artifact/${schemaSlug(schemaPath)}/${crypto.randomUUID()}.yaml`;
 }
 
-export async function loadMonacoYamlSchemas(): Promise<SchemasSettings[]> {
-	return Promise.all(
-		EDITABLE_KINDS.map(async (def) => {
-			const response = await fetch(def.schemaPath);
-			if (!response.ok) {
-				throw new Error(`Failed to load schema ${def.schemaPath}: ${response.status}`);
-			}
-			const schema = (await response.json()) as Record<string, unknown>;
-			return {
-				uri: typeof schema.$id === 'string' ? schema.$id : def.schemaPath,
-				fileMatch: [schemaFileMatch(def.schemaPath)],
-				schema
-			};
-		})
-	);
+/** Bundled JSON Schemas — no runtime fetch (works in dev, Docker, offline). */
+export function buildMonacoYamlSchemas(): SchemasSettings[] {
+	return EDITABLE_KINDS.map((def) => {
+		const schema = SCHEMA_BY_PATH[def.schemaPath];
+		if (!schema) {
+			throw new Error(`Missing bundled schema for ${def.schemaPath}`);
+		}
+		return {
+			uri: typeof schema.$id === 'string' ? schema.$id : def.schemaPath,
+			fileMatch: [schemaFileMatch(def.schemaPath)],
+			schema
+		};
+	});
 }

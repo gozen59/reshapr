@@ -16,11 +16,13 @@
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import YamlWorker from './yaml.worker.js?worker';
-import { loadMonacoYamlSchemas } from './schemas.js';
+import { buildMonacoYamlSchemas } from './schemas.js';
 
 import type * as Monaco from 'monaco-editor';
+import type { MonacoYaml } from 'monaco-yaml';
 
 let monacoPromise: Promise<typeof Monaco> | null = null;
+let monacoYamlHandle: MonacoYaml | null = null;
 
 function configureWorkers(): void {
 	if (globalThis.MonacoEnvironment) return;
@@ -48,18 +50,22 @@ export async function ensureMonacoYaml(): Promise<typeof Monaco> {
 		await import('monaco-editor/min/vs/editor/editor.main.css');
 		const monaco = await import('monaco-editor');
 		const { configureMonacoYaml } = await import('monaco-yaml');
-		const schemas = await loadMonacoYamlSchemas();
 
-		configureMonacoYaml(monaco, {
+		monacoYamlHandle?.dispose();
+		monacoYamlHandle = configureMonacoYaml(monaco, {
 			enableSchemaRequest: false,
 			validate: true,
 			completion: true,
 			hover: true,
-			schemas
+			schemas: buildMonacoYamlSchemas()
 		});
 
 		return monaco;
 	})();
 
 	return monacoPromise;
+}
+
+export function getMonacoYamlHandle(): MonacoYaml | null {
+	return monacoYamlHandle;
 }
