@@ -123,4 +123,3 @@ export async function stopInfrastructure(): Promise<void> {
   });
   console.log('✅ Infrastructure stopped.');
 }
-
