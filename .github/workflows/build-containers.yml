@@ -90,11 +90,22 @@ jobs:
             org.opencontainers.image.created=${{ steps.date.outputs.date }}
           tags: quay.io/reshapr/reshapr-proxy:${{env.IMAGE_TAG}},docker.io/reshapr/reshapr-proxy:${{env.IMAGE_TAG}}
 
+      - name: Set up Node.js for web-ui schema sync
+        uses: actions/setup-node@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web-ui/package-lock.json
+
+      - name: Sync control-plane JSON schemas into web-ui
+        run: npm run copy-schemas
+        working-directory: web-ui
+
       - name: Build and push container image for web-ui
         id: build-and-push-ui
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
-          context: ${{github.workspace}}
+          context: ${{github.workspace}}/web-ui
           sbom: true
           push: true
           provenance: mode=max
