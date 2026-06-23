@@ -15,32 +15,85 @@
   -->
 
 <script lang="ts">
-	import { apiClient, ApiError } from '$lib/api/client.js';
+	import { tick } from 'svelte';
+	import { apiClient } from '$lib/api/client.js';
+	import { formatApiError } from '$lib/format-api-error.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
+	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import * as Alert from '$lib/components/ui/alert/index.js';
+	import { auth } from '$lib/stores/auth.svelte.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import {
+		Sheet,
+		SheetContent,
+		SheetHeader,
+		SheetTitle,
+		SheetDescription,
+		SheetFooter,
+		SheetClose
+	} from '$lib/components/ui/sheet/index.js';
+	import {
+		DropdownMenu,
+		DropdownMenuContent,
+		DropdownMenuItem,
+		DropdownMenuTrigger
+	} from '$lib/components/ui/dropdown-menu/index.js';
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import MoreVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import CopyIcon from '@lucide/svelte/icons/copy';
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import XIcon from '@lucide/svelte/icons/x';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { UserIcon } from '@hugeicons/core-free-icons';
 
-	type TokenRow = { id: string; name: string; validUntil?: string };
+	type ApiTokenRow = {
+		id?: string;
+		organizationId?: string;
+		name?: string;
+		token?: string;
+		validUntil?: string;
+		username?: string;
+	};
 
-	const VALIDITY = [1, 7, 30, 90] as const;
+	const VALIDITY = ['1', '7', '30', '90'] as const;
 
-	let rows = $state<TokenRow[]>([]);
+	function validityLabel(days: string): string {
+		return `${days} day${Number(days) > 1 ? 's' : ''}`;
+	}
+
+	// ── List state ────────────────────────────────────────────
+	let rows = $state<ApiTokenRow[]>([]);
+	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let createdToken = $state<string | null>(null);
-	let validityDays = $state('30');
+	let query = $state('');
+
+	const filtered = $derived(
+		query.trim() === ''
+			? rows
+			: rows.filter((r) => (r.name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
+	);
+
+	function asRows(data: unknown[]): ApiTokenRow[] {
+		return data.filter((r): r is ApiTokenRow => r !== null && typeof r === 'object');
+	}
 
 	async function load() {
+		loading = true;
 		error = null;
 		try {
-			const data = (await apiClient().listApiTokens()) as TokenRow[];
-			rows = Array.isArray(data) ? data : [];
+			const data = await apiClient().listApiTokens();
+			rows = asRows(Array.isArray(data) ? data : []);
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : String(e);
+			error = formatApiError(e);
+			rows = [];
+		} finally {
+			loading = false;
 		}
 	}
 
@@ -48,105 +101,328 @@
 		void load();
 	});
 
-	async function onCreate(ev: SubmitEvent) {
-		ev.preventDefault();
-		createdToken = null;
-		const fd = new FormData(ev.target as HTMLFormElement);
-		const name = String(fd.get('name') || '');
-		const days = Number(validityDays || 30);
-		if (!name) return;
-		error = null;
+	// ── Created token banner (shown once) ─────────────────────
+	let createdToken = $state<string | null>(null);
+	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function copyCreatedToken() {
+		if (!createdToken) return;
 		try {
-			const out = (await apiClient().createApiToken({ name, validityDays: days })) as {
-				token?: string;
-			};
-			if (out.token) createdToken = out.token;
-			(ev.target as HTMLFormElement).reset();
-			validityDays = '30';
-			await load();
-		} catch (e) {
-			error = e instanceof ApiError ? e.message : String(e);
+			await navigator.clipboard.writeText(createdToken);
+			copied = true;
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = false), 1500);
+		} catch {
+			// Clipboard may be unavailable (e.g. insecure context); ignore.
 		}
 	}
 
-	async function onDelete(tokenId: string) {
-		if (!confirm('Revoke this token?')) return;
-		error = null;
+	// ── Create drawer state ───────────────────────────────────
+	let drawerOpen = $state(false);
+	let submitting = $state(false);
+	let formError = $state('');
+
+	// Form fields
+	let fName = $state('');
+	let fValidity = $state<string>('30');
+
+	// Work around a bits-ui body-scroll-lock issue (see secrets/gateway-groups
+	// pages): force-unfreeze the body after the dialog close restore window
+	// whenever the drawer is closed.
+	$effect(() => {
+		if (drawerOpen) return;
+		const unfreeze = () => {
+			if (document.body.style.pointerEvents === 'none') {
+				document.body.style.removeProperty('pointer-events');
+				document.body.style.removeProperty('overflow');
+			}
+		};
+		const timers = [50, 200].map((d) => setTimeout(unfreeze, d));
+		return () => timers.forEach(clearTimeout);
+	});
+
+	function resetForm() {
+		fName = '';
+		fValidity = '30';
+		formError = '';
+	}
+
+	// Force a clean open transition so the drawer reliably reopens even if a
+	// previous user-initiated close left `drawerOpen` out of sync.
+	async function openDrawer() {
+		drawerOpen = false;
+		await tick();
+		drawerOpen = true;
+	}
+
+	function openCreate() {
+		resetForm();
+		void openDrawer();
+	}
+
+	async function handleSubmit(e: Event) {
+		e.preventDefault();
+		formError = '';
+		submitting = true;
 		try {
-			await apiClient().deleteApiToken(tokenId);
+			const out = (await apiClient().createApiToken({
+				name: fName.trim(),
+				validityDays: fValidity
+			})) as { token?: string };
+			drawerOpen = false;
+			createdToken = out.token ?? null;
+			copied = false;
 			await load();
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : String(e);
+			formError = formatApiError(e);
+		} finally {
+			submitting = false;
+		}
+	}
+
+	async function onDelete(row: ApiTokenRow) {
+		if (!row.id || !confirm(`Revoke token "${row.name ?? row.id}"?`)) return;
+		try {
+			await apiClient().deleteApiToken(row.id);
+			await load();
+		} catch (e) {
+			error = formatApiError(e);
 		}
 	}
 </script>
 
-<PageHeader title="API tokens">
+<svelte:head>
+	<title>API tokens — reShapr</title>
+</svelte:head>
+
+<PageHeader
+	title="API tokens"
+	subtitle="Long-lived tokens used to connect gateways to the control plane."
+>
 	{#snippet actions()}
-		<Button variant="outline" onclick={() => void load()}>Refresh</Button>
+		<Button variant="outline" disabled={loading} onclick={() => void load()}>Refresh</Button>
+		<Button onclick={openCreate}>New token</Button>
 	{/snippet}
 </PageHeader>
 
-{#if createdToken}
-	<Alert.Root class="mb-4">
-		<Alert.Title>Token (copy once)</Alert.Title>
-		<Alert.Description>
-			<code class="text-xs break-all">{createdToken}</code>
-		</Alert.Description>
-	</Alert.Root>
-{/if}
-
 {#if error}
-	<ApiErrorAlert message={error} />
+	<div class="mb-4">
+		<ApiErrorAlert message={error} />
+	</div>
 {/if}
 
-<Card.Root class="mb-6">
-	<Card.Header>
-		<Card.Title>Create</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<form class="flex flex-wrap items-end gap-3" onsubmit={onCreate}>
-			<Input name="name" placeholder="Name" class="max-w-xs" required />
-			<Select.Root type="single" bind:value={validityDays}>
-				<Select.Trigger class="w-[140px]">
-					{validityDays} day{Number(validityDays) > 1 ? 's' : ''}
-				</Select.Trigger>
-				<Select.Content>
-					{#each VALIDITY as d (d)}
-						<Select.Item value={String(d)}>{d} day{d > 1 ? 's' : ''}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-			<Button type="submit">Create</Button>
-		</form>
-	</Card.Content>
-</Card.Root>
+{#if createdToken}
+	<div class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<p class="text-sm font-semibold text-amber-700 dark:text-amber-400">Copy your token now</p>
+				<p class="text-muted-foreground mt-0.5 text-xs">
+					This is the only time the token value will be shown.
+				</p>
+				<code class="mt-2 block font-mono text-xs break-all">{createdToken}</code>
+			</div>
+			<div class="flex shrink-0 items-center gap-1">
+				<Button variant="outline" size="sm" onclick={() => void copyCreatedToken()}>
+					{#if copied}
+						<CheckIcon class="size-4" />
+						Copied
+					{:else}
+						<CopyIcon class="size-4" />
+						Copy
+					{/if}
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					onclick={() => (createdToken = null)}
+					aria-label="Dismiss"
+				>
+					<XIcon class="size-4" />
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
 
-<div class="rounded-lg border">
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>ID</Table.Head>
-				<Table.Head>Name</Table.Head>
-				<Table.Head>Valid until</Table.Head>
-				<Table.Head class="w-[100px]" />
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each rows as t (t.id)}
-				<Table.Row>
-					<Table.Cell>{t.id}</Table.Cell>
-					<Table.Cell>{t.name}</Table.Cell>
-					<Table.Cell>
-						{t.validUntil ? new Date(t.validUntil).toLocaleString() : '—'}
-					</Table.Cell>
-					<Table.Cell>
-						<Button variant="destructive" size="sm" onclick={() => void onDelete(t.id)}>
-							Revoke
-						</Button>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+	<div class="flex items-baseline gap-2">
+		<h3 class="text-base font-semibold">All API tokens</h3>
+		{#if !loading}
+			<span class="text-muted-foreground text-sm">
+				{#if query.trim()}
+					{filtered.length} / {rows.length}
+				{:else}
+					{rows.length} token{rows.length === 1 ? '' : 's'}
+				{/if}
+			</span>
+		{/if}
+	</div>
+	{#if !loading && rows.length > 0}
+		<div class="relative w-full sm:w-64">
+			<SearchIcon
+				class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+			/>
+			<Input bind:value={query} placeholder="Filter by name…" class="pl-8" />
+		</div>
+	{/if}
 </div>
+
+{#if loading}
+	<div class="text-muted-foreground rounded-lg border py-12 text-center text-sm">Loading…</div>
+{:else if rows.length === 0}
+	<div
+		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
+	>
+		<p class="text-sm">No API token yet.</p>
+		<Button class="mt-3" size="sm" onclick={openCreate}>Create your first API token</Button>
+	</div>
+{:else if filtered.length === 0}
+	<div
+		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
+	>
+		<p class="text-sm">No API token matches “{query}”.</p>
+	</div>
+{:else}
+	<div class="rounded-lg border">
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>ID</Table.Head>
+					<Table.Head>Name</Table.Head>
+					{#if auth.isAdmin}
+						<Table.Head>Org</Table.Head>
+					{/if}
+					<Table.Head>Issued by</Table.Head>
+					<Table.Head>Valid until</Table.Head>
+					<Table.Head class="w-16 text-right">Actions</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each filtered as row (row.id ?? `${row.name}-${row.organizationId}`)}
+					<Table.Row>
+						<Table.Cell>
+							<code
+								class="text-muted-foreground bg-muted rounded px-1 py-0.5 font-mono text-xs break-all"
+								>{row.id ?? '—'}</code
+							>
+						</Table.Cell>
+						<Table.Cell class="font-medium">{row.name ?? '—'}</Table.Cell>
+						{#if auth.isAdmin}
+							<Table.Cell>
+								{#if row.organizationId}
+									<OrganizationBadge organizationName={row.organizationId} />
+								{:else}
+									—
+								{/if}
+							</Table.Cell>
+						{/if}
+						<Table.Cell class="text-muted-foreground">
+							{#if row.username}
+								<Badge variant="secondary">
+									<HugeiconsIcon icon={UserIcon} size={12} class="mr-1" />
+									{row.username}
+								</Badge>
+							{:else}
+								—
+							{/if}
+						</Table.Cell>
+						<Table.Cell>
+							{#if row.validUntil}
+								<Badge variant="secondary" class="font-mono text-xs">
+									{new Date(row.validUntil).toLocaleString()}
+								</Badge>
+							{:else}
+								<span class="text-muted-foreground">—</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="text-right">
+							<DropdownMenu>
+								<DropdownMenuTrigger>
+									{#snippet child({ props })}
+										<Button variant="ghost" size="icon" {...props}>
+											<MoreVerticalIcon class="size-4" />
+										</Button>
+									{/snippet}
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem
+										class="text-destructive px-4"
+										onclick={() => void onDelete(row)}
+									>
+										<Trash2Icon class="size-4" />
+										Revoke
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	</div>
+{/if}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Create API Token Drawer                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<Sheet bind:open={drawerOpen}>
+	<SheetContent side="right" class="flex flex-col sm:max-w-lg">
+		<SheetHeader>
+			<SheetTitle>Create API token</SheetTitle>
+			<SheetDescription>
+				Generate a new API token in the reShapr control plane. The token value is shown only once
+				after creation.
+			</SheetDescription>
+		</SheetHeader>
+
+		<form onsubmit={handleSubmit} class="flex-1 space-y-4 overflow-y-auto px-4">
+			<div class="space-y-2">
+				<Label for="tokenName">Name <span class="text-destructive">*</span></Label>
+				<Input id="tokenName" placeholder="my-api-token" bind:value={fName} required />
+			</div>
+
+			<div class="space-y-2">
+				<Label for="tokenValidity">Validity</Label>
+				<Select.Root type="single" bind:value={fValidity}>
+					<Select.Trigger id="tokenValidity" class="w-full">
+						{validityLabel(fValidity)}
+					</Select.Trigger>
+					<Select.Content>
+						{#each VALIDITY as d (d)}
+							<Select.Item value={d}>{validityLabel(d)}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<p class="text-muted-foreground text-xs">
+					The token will be valid for this number of days from today.
+				</p>
+			</div>
+
+			{#if formError}
+				<div class="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm">
+					{formError}
+				</div>
+			{/if}
+
+			<SheetFooter class="pt-4">
+				<SheetClose>
+					{#snippet child({ props })}
+						<Button variant="outline" type="button" {...props}>Cancel</Button>
+					{/snippet}
+				</SheetClose>
+				<Button type="submit" disabled={submitting || !fName.trim()}>
+					{#if submitting}
+						<div
+							class="border-primary-foreground h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+						></div>
+						Creating…
+					{:else}
+						Create token
+					{/if}
+				</Button>
+			</SheetFooter>
+		</form>
+	</SheetContent>
+</Sheet>
+

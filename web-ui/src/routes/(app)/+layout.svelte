@@ -27,10 +27,12 @@
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import {
     ApiIcon,
+    ApiGatewayIcon,
     Building01Icon,
     ChevronDownIcon,
     DashboardSquare02Icon,
     FlaskConicalIcon,
+    Key01Icon,
     Logout01Icon,
     McpServerIcon,
     SidebarLeft01Icon,
@@ -54,7 +56,6 @@
     { href: '/mcp-custom-tools', label: 'MCP custom tools' },
     { href: '/mcp-prompts', label: 'MCP prompts' },
     { href: '/quotas', label: 'Quotas' },
-    { href: '/api-tokens', label: 'API tokens' },
   ] as const;
 
   onMount(async () => {
@@ -103,6 +104,8 @@
       title: 'Runtime',
       items: [
         { href: '/expositions', label: 'MCP Servers', icon: McpServerIcon },
+        { href: '/gateways', label: 'Gateways', icon: ApiGatewayIcon },
+        { href: '/api-tokens', label: 'API Tokens', icon: Key01Icon },
       ]
     },
     {
