@@ -26,6 +26,7 @@ import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A gateway that is currently running and reporting health to the Reshapr control plane.
@@ -39,6 +40,10 @@ public class Gateway extends TenantAwareEntity {
    @Column(nullable = false)
    public String name;
 
+   /** The version of the gateway runtime, as advertised during registration. */
+   @Column
+   public String version;
+
    @Column(name = "started_at", nullable = false, columnDefinition = "TIMESTAMP")
    public LocalDateTime startedAt;
 
@@ -48,6 +53,11 @@ public class Gateway extends TenantAwareEntity {
    @Type(JsonType.class)
    @Column(columnDefinition = "JSONB")
    public List<String> fqdns;
+
+   /** The labels advertised by the gateway during registration. */
+   @Type(JsonType.class)
+   @Column(columnDefinition = "JSONB")
+   public Map<String, String> labels;
 
    @ManyToMany
    @JoinTable(

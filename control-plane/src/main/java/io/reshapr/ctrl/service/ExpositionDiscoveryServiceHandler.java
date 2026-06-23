@@ -98,7 +98,7 @@ public class ExpositionDiscoveryServiceHandler extends ExpositionDiscoveryServic
       ExpositionDiscoveryResponse.Builder builder = ExpositionDiscoveryResponse.newBuilder();
 
       List<ConfigurationPlan> configurations = configurationPlanManagerService.getExpositionConfigurations(request.getGatewayId(),
-            request.getLabelsMap(), request.getFqdnsList());
+            request.getLabelsMap(), request.getFqdnsList(), request.hasVersion() ? request.getVersion() : null);
       for (ConfigurationPlan configuration : configurations) {
          builder.addExpositions(grpcExpositionFromModel(configuration));
       }

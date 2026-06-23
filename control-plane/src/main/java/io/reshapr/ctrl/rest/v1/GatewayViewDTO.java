@@ -19,22 +19,29 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Data Transfer Object (DTO) for a gateway view in the Reshapr control plane.
  * @param id The unique identifier of the gateway.
  * @param organizationId The identifier of the organization that owns the gateway.
  * @param name The name of the gateway.
+ * @param version The version of the gateway runtime advertised during registration.
  * @param startedAt The timestamp when the gateway was started.
  * @param lastHeartbeat The timestamp of the last heartbeat received from the gateway.
  * @param fqdns The list of fully qualified domain names associated with the gateway.
+ * @param labels The labels advertised by the gateway during registration.
+ * @param gatewayGroups The gateway groups the gateway is mapped to.
  */
 @RegisterForReflection
 public record GatewayViewDTO(
       String id,
       String organizationId,
       String name,
+      String version,
       LocalDateTime startedAt,
       LocalDateTime lastHeartbeat,
-      List<String> fqdns) {
+      List<String> fqdns,
+      Map<String, String> labels,
+      List<GatewayGroupDTO> gatewayGroups) {
 }

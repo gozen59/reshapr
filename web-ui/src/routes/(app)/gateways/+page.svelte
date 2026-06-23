@@ -18,6 +18,7 @@
 	import { apiClient } from '$lib/api/client.js';
 	import { formatApiError } from '$lib/format-api-error.js';
 	import { quotaEntry } from '$lib/dashboardStatsCompute.js';
+	import { avatarColor } from '$lib/avatarColor.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -35,19 +36,29 @@
 		TooltipTrigger
 	} from '$lib/components/ui/tooltip/index.js';
 	import SearchIcon from '@lucide/svelte/icons/search';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { ApiGatewayIcon, Key01Icon, PulseIcon } from '@hugeicons/core-free-icons';
+	import { ApiGatewayIcon, Key01Icon, PulseIcon, TagsIcon } from '@hugeicons/core-free-icons';
 	import ApiTokensTab from './ApiTokensTab.svelte';
 
 	const QUOTA_METRIC = 'gateway.count';
+
+	type GatewayGroupRef = {
+		id?: string;
+		name?: string;
+		labels?: Record<string, string>;
+	};
 
 	type Gateway = {
 		id?: string;
 		organizationId?: string;
 		name?: string;
+		version?: string;
 		startedAt?: string;
 		lastHeartbeat?: string;
 		fqdns?: string[];
+		labels?: Record<string, string>;
+		gatewayGroups?: GatewayGroupRef[];
 	};
 
 	type QuotaInfo = { used: number; limit: number; remaining: number } | null;
@@ -88,6 +99,27 @@
 
 	// ── Quota state ───────────────────────────────────────────
 	let quota = $state<QuotaInfo>(null);
+
+	// ── Row expansion state ───────────────────────────────────
+	let expandedId = $state<string | null>(null);
+
+	function rowKey(row: Gateway): string {
+		return row.id ?? row.name ?? '';
+	}
+
+	function toggleExpand(row: Gateway) {
+		const key = rowKey(row);
+		expandedId = expandedId === key ? null : key;
+	}
+
+	// Total number of table columns, used for the expanded detail row colspan.
+	// Columns: chevron, health, name, [org], fqdns, started at.
+	const columnCount = $derived(auth.isAdmin ? 6 : 5);
+
+	function labelEntries(labels: Record<string, string> | undefined): [string, string][] {
+		if (!labels || typeof labels !== 'object') return [];
+		return Object.entries(labels);
+	}
 
 	// ── ApiTokensTab component ref ────────────────────────────
 	let apiTokensTabRef: ReturnType<typeof ApiTokensTab> | undefined = $state();
@@ -237,6 +269,7 @@
 					<Table.Root>
 						<Table.Header>
 							<Table.Row>
+								<Table.Head class="w-8"></Table.Head>
 								<Table.Head class="w-16 text-center">Health</Table.Head>
 								<Table.Head>Name</Table.Head>
 								{#if auth.isAdmin}
@@ -247,9 +280,17 @@
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each filtered as row (row.id ?? row.name)}
+							{#each filtered as row (rowKey(row))}
 								{@const health = gatewayHealth(row.lastHeartbeat)}
-								<Table.Row>
+								{@const expanded = expandedId === rowKey(row)}
+								<Table.Row class="cursor-pointer" onclick={() => toggleExpand(row)}>
+									<Table.Cell class="text-muted-foreground">
+										<span
+											class="inline-flex transition-transform duration-200 {expanded ? 'rotate-90' : ''}"
+										>
+											<ChevronRightIcon class="size-4" />
+										</span>
+									</Table.Cell>
 									<Table.Cell class="text-center">
 										<TooltipProvider delayDuration={150}>
 											<Tooltip>
@@ -299,6 +340,74 @@
 										{formatDate(row.startedAt)}
 									</Table.Cell>
 								</Table.Row>
+
+								{#if expanded}
+									{@const labels = labelEntries(row.labels)}
+									{@const groups = row.gatewayGroups ?? []}
+									<Table.Row class="bg-muted/30 hover:bg-muted/30">
+										<Table.Cell colspan={columnCount} class="p-0">
+											<div class="grid gap-6 px-6 py-4 sm:grid-cols-3">
+												<!-- Version -->
+												<div class="space-y-1.5">
+													<p
+														class="text-muted-foreground text-xs font-semibold tracking-wider uppercase"
+													>
+														Version
+													</p>
+													{#if row.version}
+														<Badge variant="secondary" class="font-mono text-xs">{row.version}</Badge>
+													{:else}
+														<span class="text-muted-foreground text-sm">—</span>
+													{/if}
+												</div>
+
+												<!-- Labels -->
+												<div class="space-y-1.5">
+													<p
+														class="text-muted-foreground text-xs font-semibold tracking-wider uppercase"
+													>
+														Labels
+													</p>
+													{#if labels.length === 0}
+														<span class="text-muted-foreground text-sm">No labels</span>
+													{:else}
+														<div class="flex flex-wrap gap-1">
+															{#each labels as [k, v] (k)}
+																<Badge
+																	class="border-transparent font-mono text-xs text-white"
+																	style="background-color: {avatarColor(k)};"
+																>
+																	{k}={v}
+																</Badge>
+															{/each}
+														</div>
+													{/if}
+												</div>
+
+												<!-- Gateway groups -->
+												<div class="space-y-1.5">
+													<p
+														class="text-muted-foreground text-xs font-semibold tracking-wider uppercase"
+													>
+														Gateway groups
+													</p>
+													{#if groups.length === 0}
+														<span class="text-muted-foreground text-sm">Not mapped to any group</span>
+													{:else}
+														<div class="flex flex-wrap gap-1">
+															{#each groups as group (group.id ?? group.name)}
+																<Badge variant="secondary" class="gap-1 text-xs">
+																	<HugeiconsIcon icon={TagsIcon} size={12} />
+																	{group.name ?? group.id}
+																</Badge>
+															{/each}
+														</div>
+													{/if}
+												</div>
+											</div>
+										</Table.Cell>
+									</Table.Row>
+								{/if}
 							{/each}
 						</Table.Body>
 					</Table.Root>

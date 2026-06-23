@@ -19,6 +19,7 @@
 	import { apiClient } from '$lib/api/client.js';
 	import { formatApiError } from '$lib/format-api-error.js';
 	import { quotaEntry } from '$lib/dashboardStatsCompute.js';
+	import { avatarColor } from '$lib/avatarColor.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -338,7 +339,12 @@
 							{:else}
 								<div class="flex flex-wrap gap-1">
 									{#each entries as [k, v] (k)}
-										<Badge variant="secondary" class="font-mono text-xs">{k}={v}</Badge>
+										<Badge
+											class="border-transparent font-mono text-xs text-white"
+											style="background-color: {avatarColor(k)};"
+										>
+											{k}={v}
+										</Badge>
 									{/each}
 								</div>
 							{/if}

@@ -202,9 +202,11 @@ public class ConfigurationPlanManagerService {
    /**
     * @param gatewayId The ID of the gateway for which to find configuration plans
     * @param gatewayLabels A map of labels associated with the gateway
+    * @param fqdns The list of fully-qualified domain names served by the gateway
+    * @param version The version of the gateway issuing the request
     * @return A list of configuration plans for the given gatewayId and labels
     */
-   public List<ConfigurationPlan> getExpositionConfigurations(String gatewayId, Map<String, String> gatewayLabels, List<String> fqdns) {
+   public List<ConfigurationPlan> getExpositionConfigurations(String gatewayId, Map<String, String> gatewayLabels, List<String> fqdns, String version) {
       logger.debugf("Finding the assigned groups for gatewayId: %s with labels %s", gatewayId, gatewayLabels);
 
       List<Exposition> expositions = new ArrayList<>();
@@ -217,7 +219,7 @@ public class ConfigurationPlanManagerService {
             expositions.addAll(expositionRepository.findByGatewayGroupId(gatewayGroup.id));
          }
       }
-      gatewayManagerService.registerGateway(gatewayId, matchingGroups, fqdns);
+      gatewayManagerService.registerGateway(gatewayId, matchingGroups, fqdns, gatewayLabels, version);
 
       logger.debugf("Found %d expositions for gatewayId: %s", expositions.size(), gatewayId);
       return expositions.stream()

@@ -1083,6 +1083,9 @@ components:
         name:
           description: The unique name of this Gateway
           type: string
+        version:
+          description: The version of the gateway runtime advertised during registration
+          type: string
         startedAt:
           format: date-time
           description: The timestamp when this gateway was started
@@ -1096,6 +1099,15 @@ components:
           type: array
           items:
             type: string
+        labels:
+          description: The labels advertised by this gateway during registration (key=value pairs)
+          type: object
+          additionalProperties: true
+        gatewayGroups:
+          description: The gateway groups this gateway is mapped to
+          type: array
+          items:
+            $ref: '#/components/schemas/GatewayGroup'
     ApiToken:
       description: An API token for the Reshapr control plane
       required:
