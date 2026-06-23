@@ -20,7 +20,6 @@
 	import { formatApiError } from '$lib/format-api-error.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import OrganizationBadge from '$lib/components/OrganizationBadge.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { auth } from '$lib/stores/auth.svelte.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -101,6 +100,11 @@
 		void load();
 	});
 
+	// Exposed so the parent page header can trigger a refresh.
+	export function refresh() {
+		void load();
+	}
+
 	// ── Created token banner (shown once) ─────────────────────
 	let createdToken = $state<string | null>(null);
 	let copied = $state(false);
@@ -156,7 +160,8 @@
 		drawerOpen = true;
 	}
 
-	function openCreate() {
+	// Exposed so the parent page header can open the create drawer.
+	export function openCreateDrawer() {
 		resetForm();
 		void openDrawer();
 	}
@@ -192,20 +197,9 @@
 	}
 </script>
 
-<svelte:head>
-	<title>API tokens — reShapr</title>
-</svelte:head>
-
-<PageHeader
-	title="API tokens"
-	subtitle="Long-lived tokens used to connect gateways to the control plane."
->
-	{#snippet actions()}
-		<Button variant="outline" disabled={loading} onclick={() => void load()}>Refresh</Button>
-		<Button onclick={openCreate}>New token</Button>
-	{/snippet}
-</PageHeader>
-
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- API Tokens Tab Content                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 {#if error}
 	<div class="mb-4">
 		<ApiErrorAlert message={error} />
@@ -275,7 +269,7 @@
 		class="text-muted-foreground flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
 	>
 		<p class="text-sm">No API token yet.</p>
-		<Button class="mt-3" size="sm" onclick={openCreate}>Create your first API token</Button>
+		<Button class="mt-3" size="sm" onclick={openCreateDrawer}>Create your first API token</Button>
 	</div>
 {:else if filtered.length === 0}
 	<div

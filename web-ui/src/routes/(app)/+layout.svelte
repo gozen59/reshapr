@@ -32,7 +32,6 @@
     ChevronDownIcon,
     DashboardSquare02Icon,
     FlaskConicalIcon,
-    Key01Icon,
     Logout01Icon,
     McpServerIcon,
     SidebarLeft01Icon,
@@ -105,7 +104,6 @@
       items: [
         { href: '/expositions', label: 'MCP Servers', icon: McpServerIcon },
         { href: '/gateways', label: 'Gateways', icon: ApiGatewayIcon },
-        { href: '/api-tokens', label: 'API Tokens', icon: Key01Icon },
       ]
     },
     {
