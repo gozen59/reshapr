@@ -1077,8 +1077,19 @@ components:
         id:
           description: The unique identifier of this Gateway
           type: string
+        organizationId:
+          description: Identifier of the organization owning this gateway
+          type: string
         name:
           description: The unique name of this Gateway
+          type: string
+        startedAt:
+          format: date-time
+          description: The timestamp when this gateway was started
+          type: string
+        lastHeartbeat:
+          format: date-time
+          description: The timestamp of the last heartbeat received from this gateway
           type: string
         fqdns:
           description: The list of fully-qualified domain names served by this gateway

@@ -56,7 +56,7 @@ public class GatewayResource {
    @GET
    @Authenticated
    @Produces(MediaType.APPLICATION_JSON)
-   public List<GatewayDTO> listGateways() {
+   public List<GatewayViewDTO> listGateways() {
       logger.debug("Listing active gateways for the current tenant");
       List<Gateway> gateways = gatewayManagerService.getActiveGateways();
       return v1Mappers.toGWResources(gateways);
