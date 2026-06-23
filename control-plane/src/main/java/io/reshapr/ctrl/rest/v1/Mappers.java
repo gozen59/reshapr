@@ -59,7 +59,7 @@ public interface Mappers {
 
    GatewayDTO toResource(Gateway gateway);
 
-   List<GatewayDTO> toGWResources(List<Gateway> gateways);
+   List<GatewayViewDTO> toGWResources(List<Gateway> gateways);
 
    OAuth2ClientConfigurationDTO toResource(OAuth2ClientConfiguration oauth2ClientConfiguration);
 
