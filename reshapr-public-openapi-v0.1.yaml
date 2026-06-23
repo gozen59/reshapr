@@ -413,6 +413,20 @@ paths:
       security:
       - jwt-bearer: []
       operationId: getQuotas
+  /v1/gateways:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Gateway'
+          description: The gateways currently active in the user's organization
+      security:
+      - jwt-bearer: []
+      operationId: listGateways
   /v1/secrets:
     get:
       parameters:
@@ -1053,6 +1067,24 @@ components:
           description: The labels attached to this gateway group (key=value pairs)
           type: object
           additionalProperties: true
+    Gateway:
+      description: A gateway currently active and reporting health to the Reshapr control plane
+      required:
+      - id
+      - name
+      type: object
+      properties:
+        id:
+          description: The unique identifier of this Gateway
+          type: string
+        name:
+          description: The unique name of this Gateway
+          type: string
+        fqdns:
+          description: The list of fully-qualified domain names served by this gateway
+          type: array
+          items:
+            type: string
     ApiToken:
       description: An API token for the Reshapr control plane
       required:

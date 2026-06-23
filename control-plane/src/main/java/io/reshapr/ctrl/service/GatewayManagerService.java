@@ -48,6 +48,18 @@ public class GatewayManagerService {
       this.expositionDiscoveryServiceHandler = expositionDiscoveryServiceHandler;
    }
 
+   /**
+    * Retrieve the list of currently active gateways for the current tenant. Gateways are considered
+    * active as long as they keep reporting health: expired registrations are pruned by the
+    * {@code GatewayRegistrationCleaner}. The multi-tenant filter is applied automatically as
+    * {@link Gateway} is a tenant-aware entity.
+    * @return the list of active gateways owned by the current tenant
+    */
+   public List<Gateway> getActiveGateways() {
+      logger.debug("Retrieving active gateways for the current tenant");
+      return gatewayRepository.listAll();
+   }
+
    @Transactional
    public void registerGateway(String gatewayName, List<GatewayGroup> matchingGroups, List<String> fqdns) {
       logger.infof("Registering gateway with name: '%s'", gatewayName);
