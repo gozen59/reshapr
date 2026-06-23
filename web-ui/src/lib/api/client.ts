@@ -169,6 +169,8 @@ export function apiClient() {
       }),
     deleteGatewayGroup: (id: string) => empty(`/api/v1/gatewayGroups/${id}`, { method: 'DELETE' }),
 
+    listGateways: () => json<unknown[]>('/api/v1/gateways'),
+
     getQuotas: () => json<unknown>('/api/v1/quotas'),
 
     listApiTokens: () => json<unknown[]>('/api/v1/tokens/apiTokens'),
