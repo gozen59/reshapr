@@ -20,6 +20,7 @@ import io.reshapr.ctrl.model.ApiToken;
 import io.reshapr.ctrl.model.Artifact;
 import io.reshapr.ctrl.model.ConfigurationPlan;
 import io.reshapr.ctrl.model.Exposition;
+import io.reshapr.ctrl.model.Gateway;
 import io.reshapr.ctrl.model.GatewayGroup;
 import io.reshapr.ctrl.model.Organization;
 import io.reshapr.ctrl.model.Quota;
@@ -55,6 +56,10 @@ public interface Mappers {
    GatewayGroup fromResource(GatewayGroupDTO gatewayGroupDTO);
 
    List<GatewayGroupDTO> toGGResources(List<GatewayGroup> gatewayGroup);
+
+   GatewayDTO toResource(Gateway gateway);
+
+   List<GatewayDTO> toGWResources(List<Gateway> gateways);
 
    OAuth2ClientConfigurationDTO toResource(OAuth2ClientConfiguration oauth2ClientConfiguration);
 

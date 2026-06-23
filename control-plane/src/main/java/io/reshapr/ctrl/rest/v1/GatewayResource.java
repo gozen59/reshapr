@@ -1,0 +1,65 @@
+/*
+ * Copyright The Reshapr Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reshapr.ctrl.rest.v1;
+
+import io.reshapr.ctrl.model.Gateway;
+import io.reshapr.ctrl.service.GatewayManagerService;
+
+import io.quarkus.security.Authenticated;
+import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+
+/**
+ * GatewayResource provides REST endpoints for inspecting the gateways that are currently active
+ * (i.e. registered and reporting health) in the Reshapr control plane.
+ * @author laurent
+ */
+@RunOnVirtualThread
+@Path("/api/v1/gateways")
+public class GatewayResource {
+
+   /** Get a JBoss logging logger. */
+   private final Logger logger = Logger.getLogger(getClass());
+
+   private final GatewayManagerService gatewayManagerService;
+   private final Mappers v1Mappers;
+
+   /**
+    * Constructor for GatewayResource.
+    * @param gatewayManagerService the service to manage gateways
+    * @param v1Mappers the mappers for converting between entities and DTOs
+    */
+   public GatewayResource(GatewayManagerService gatewayManagerService, Mappers v1Mappers) {
+      this.gatewayManagerService = gatewayManagerService;
+      this.v1Mappers = v1Mappers;
+   }
+
+   @GET
+   @Authenticated
+   @Produces(MediaType.APPLICATION_JSON)
+   public List<GatewayDTO> listGateways() {
+      logger.debug("Listing active gateways for the current tenant");
+      List<Gateway> gateways = gatewayManagerService.getActiveGateways();
+      return v1Mappers.toGWResources(gateways);
+   }
+}
+
