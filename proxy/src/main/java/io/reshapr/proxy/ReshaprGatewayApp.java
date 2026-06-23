@@ -89,6 +89,9 @@ public class ReshaprGatewayApp {
    @ConfigProperty(name = "reshapr.gateway.fqdns", defaultValue = "localhost:7777")
    List<String> fqdns;
 
+   @ConfigProperty(name = "quarkus.application.version", defaultValue = "unknown")
+   String version;
+
    Cancellable expositionChangesSubscription;
    boolean hasConnectedToControlPlane = false;
 
@@ -163,6 +166,7 @@ public class ReshaprGatewayApp {
             .setGatewayId(gatewayId)
             .putAllLabels(labels)
             .addAllFqdns(fqdns)
+            .setVersion(version)
             .build();
    }
 

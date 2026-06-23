@@ -35,6 +35,15 @@ public class GatewayRepository implements PanacheRepositoryBase<Gateway, String>
       return find("name", name).singleResultOptional();
    }
 
+   /**
+    * List all gateways for the current tenant, eagerly fetching their gateway groups so the
+    * collection can be safely mapped to DTOs outside of the persistence context.
+    * @return the list of gateways with their gateway groups initialized
+    */
+   public List<Gateway> listAllWithGroups() {
+      return find("select distinct g FROM Gateway g left join fetch g.gatewayGroups").list();
+   }
+
    public List<Gateway> findAllWithHeartbeatBefore(LocalDateTime lastHeartbeat) {
       return find("lastHeartbeat <= ?1", lastHeartbeat).list();
    }

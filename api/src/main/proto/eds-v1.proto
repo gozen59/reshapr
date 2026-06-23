@@ -76,6 +76,7 @@ message ExpositionDiscoveryRequest {
   string gatewayId = 1;
   map<string, string> labels = 2;
   repeated string fqdns = 3;
+  optional string version = 4; // Optional version of the gateway issuing the request (for backward compatibility)
 }
 
 // ExpositionDiscoveryResponse is used to return the discovered expositions

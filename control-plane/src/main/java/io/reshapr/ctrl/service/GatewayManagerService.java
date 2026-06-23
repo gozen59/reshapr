@@ -27,6 +27,7 @@ import org.jboss.logging.Logger;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
@@ -57,11 +58,12 @@ public class GatewayManagerService {
     */
    public List<Gateway> getActiveGateways() {
       logger.debug("Retrieving active gateways for the current tenant");
-      return gatewayRepository.listAll();
+      return gatewayRepository.listAllWithGroups();
    }
 
    @Transactional
-   public void registerGateway(String gatewayName, List<GatewayGroup> matchingGroups, List<String> fqdns) {
+   public void registerGateway(String gatewayName, List<GatewayGroup> matchingGroups, List<String> fqdns,
+                               Map<String, String> labels, String version) {
       logger.infof("Registering gateway with name: '%s'", gatewayName);
 
       Optional<Gateway> gatewayOpt = gatewayRepository.findByName(gatewayName);
@@ -75,6 +77,8 @@ public class GatewayManagerService {
 
       gateway.lastHeartbeat = LocalDateTime.now();
       gateway.fqdns = fqdns;
+      gateway.labels = labels;
+      gateway.version = version;
       gateway.gatewayGroups = matchingGroups;
       gatewayRepository.persist(gateway);
    }
