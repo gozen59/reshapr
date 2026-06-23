@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 *.log
 .npmrc
+
+# Synced from control-plane via scripts/copy-schemas.mjs (predev / prebuild / precheck)
+src/lib/schemas/*.json

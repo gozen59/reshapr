@@ -6,6 +6,7 @@
     "copy-schemas": "node scripts/copy-schemas.mjs",
     "predev": "npm run copy-schemas",
     "prebuild": "npm run copy-schemas",
+    "precheck": "npm run copy-schemas",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const webUiRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const schemaSource = join(
+const defaultSchemaSource = join(
 	webUiRoot,
 	'..',
 	'control-plane',
@@ -28,27 +28,31 @@ const schemaSource = join(
 	'resources',
 	'schemas'
 );
-/** Importable by Vite — not under static/ (public). */
+/** Override for container builds (see web-ui/Dockerfile). */
+const schemaSource = process.env.SCHEMA_SOURCE ?? defaultSchemaSource;
+/** Importable by Vite — generated, not committed (see web-ui/.gitignore). */
 const schemaDest = join(webUiRoot, 'src', 'lib', 'schemas');
 
 mkdirSync(schemaDest, { recursive: true });
 
 if (!existsSync(schemaSource)) {
-	const existing = readdirSync(schemaDest).filter((name) => name.endsWith('.json'));
-	if (existing.length === 0) {
-		throw new Error(
-			`Schema source missing at ${schemaSource} and no committed schemas in ${schemaDest}`
-		);
-	}
-	console.warn(
-		`Schema source not found (${schemaSource}); using ${existing.length} committed schema(s) in ${schemaDest}`
+	throw new Error(
+		`Schema source missing at ${schemaSource}. ` +
+			'Run from the monorepo with control-plane present, or set SCHEMA_SOURCE.'
 	);
-	process.exit(0);
 }
 
 const schemaFiles = readdirSync(schemaSource).filter((name) => name.endsWith('.json'));
+if (schemaFiles.length === 0) {
+	throw new Error(`No JSON schema files found in ${schemaSource}`);
+}
+
+for (const name of readdirSync(schemaDest).filter((file) => file.endsWith('.json'))) {
+	unlinkSync(join(schemaDest, name));
+}
+
 for (const file of schemaFiles) {
 	cpSync(join(schemaSource, file), join(schemaDest, file));
 }
 
-console.log(`Copied ${schemaFiles.length} schema(s) to ${schemaDest}`);
+console.log(`Copied ${schemaFiles.length} schema(s) from ${schemaSource} to ${schemaDest}`);
