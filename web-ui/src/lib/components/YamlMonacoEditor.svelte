@@ -16,8 +16,8 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ensureMonacoYaml } from '$lib/monaco/setup.js';
-	import { artifactModelUri } from '$lib/monaco/schemas.js';
+	import { ensureMonacoYaml, getMonacoYamlHandle } from '$lib/monaco/setup.js';
+	import { artifactModelUri, buildMonacoYamlSchemaForPath } from '$lib/monaco/schemas.js';
 	import ScrollableCode from '$lib/components/ScrollableCode.svelte';
 	import type * as Monaco from 'monaco-editor';
 
@@ -70,6 +70,12 @@
 				const monaco = await ensureMonacoYaml();
 				if (disposed || !container) return;
 
+				if (schemaUri) {
+					getMonacoYamlHandle()?.update({
+						schemas: [buildMonacoYamlSchemaForPath(schemaUri)]
+					});
+				}
+
 				const uri = monaco.Uri.parse(
 					schemaUri ? artifactModelUri(schemaUri) : `inmemory://reshapr/artifact/${crypto.randomUUID()}.yaml`
 				);
@@ -86,7 +92,19 @@
 					wordWrap: 'on',
 					tabSize: 2,
 					fontSize: 13,
-					theme: 'vs'
+					theme: 'vs',
+					quickSuggestions: {
+						other: 'on',
+						comments: 'off',
+						strings: 'on'
+					},
+					suggestOnTriggerCharacters: true,
+					wordBasedSuggestions: 'off',
+					tabCompletion: 'on',
+					suggest: {
+						showProperties: true,
+						snippetsPreventQuickSuggestions: false
+					}
 				});
 				editor = instance;
 

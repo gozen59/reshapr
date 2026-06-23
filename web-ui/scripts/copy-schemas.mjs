@@ -28,7 +28,8 @@ const schemaSource = join(
 	'resources',
 	'schemas'
 );
-const schemaDest = join(webUiRoot, 'static', 'schemas');
+/** Importable by Vite — not under static/ (public). */
+const schemaDest = join(webUiRoot, 'src', 'lib', 'schemas');
 
 mkdirSync(schemaDest, { recursive: true });
 

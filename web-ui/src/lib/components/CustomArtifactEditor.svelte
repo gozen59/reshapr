@@ -111,13 +111,18 @@
 		<Card.Description>
 			{#if mode === 'create'}
 				New custom artifact — edit the YAML below and save to attach it to this service.
-				Use <kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> for schema suggestions.
+				Schema suggestions appear while typing, or use the suggest shortcut
+				(<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> /
+				<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+.</kbd> on macOS).
 			{:else if artifactType}
 				Type: {artifactTypeLabel(artifactType)}
 				{#if editable}
 					<Badge variant="secondary" class="ml-2">Editable</Badge>
 					— JSON Schema validation and completion. Saving replaces the artifact of this type.
-					Use <kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> for suggestions.
+					For nested keys (e.g. <code class="text-xs">title</code> under a prompt), trigger suggest on
+					a new line before or while typing
+					(<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> /
+					<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+.</kbd> on macOS).
 				{:else}
 					<Badge variant="outline" class="ml-2">Read-only</Badge>
 				{/if}
