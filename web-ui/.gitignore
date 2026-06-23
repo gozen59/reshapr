@@ -7,5 +7,5 @@ node_modules/
 *.log
 .npmrc
 
-# Synced from control-plane via scripts/copy-schemas.mjs (predev / prebuild / precheck)
+# Synced from control-plane via scripts/copy-schemas.mjs (predev / prebuild / precheck / CI)
 src/lib/schemas/*.json

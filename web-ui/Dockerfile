@@ -1,26 +1,21 @@
 # Build stage: use Node.js to build the SvelteKit app
-# Build context: monorepo root (see .github/workflows/build-containers.yml)
 FROM node:22-alpine AS build
 
-WORKDIR /app/web-ui
+WORKDIR /app
 
 # Install dependencies first (layer caching)
-COPY web-ui/package.json web-ui/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Control-plane JSON Schemas — single source of truth (not committed under web-ui)
-COPY control-plane/src/main/resources/schemas /schemas-source
-ENV SCHEMA_SOURCE=/schemas-source
-
-# Copy web-ui sources and build (prebuild runs copy-schemas)
-COPY web-ui .
+# Copy source and build
+COPY . .
 RUN npm run build
 
 # Prune dev dependencies for a leaner production image
 RUN npm prune --omit=dev \
-    && rm -rf /app/web-ui/node_modules/.vite \
-    && rm -rf /app/web-ui/node_modules/@hugeicons \
-    && rm -rf /app/web-ui/node_modules/@rolldown
+    && rm -rf /app/node_modules/.vite \
+    && rm -rf /app/node_modules/@hugeicons \
+    && rm -rf /app/node_modules/@rolldown
 
 # -----------------------------------------------------------
 # Production stage: Red Hat UBI9 minimal
@@ -37,9 +32,9 @@ RUN echo -e "[nodejs]\nname=nodejs\nstream=22\nprofiles=\nstate=enabled" > /etc/
 WORKDIR /app
 
 # Copy the built application and production node_modules
-COPY --from=build /app/web-ui/build ./build
-COPY --from=build /app/web-ui/node_modules ./node_modules
-COPY --from=build /app/web-ui/package.json ./
+COPY --from=build /app/build ./build
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
 
 # SvelteKit adapter-node configuration
 ENV NODE_ENV=production

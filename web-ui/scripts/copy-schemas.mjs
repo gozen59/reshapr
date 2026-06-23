@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const webUiRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const defaultSchemaSource = join(
+const schemaSource = join(
 	webUiRoot,
 	'..',
 	'control-plane',
@@ -28,18 +28,27 @@ const defaultSchemaSource = join(
 	'resources',
 	'schemas'
 );
-/** Override for container builds (see web-ui/Dockerfile). */
-const schemaSource = process.env.SCHEMA_SOURCE ?? defaultSchemaSource;
-/** Importable by Vite — generated, not committed (see web-ui/.gitignore). */
+/** Generated at build time — not committed (see web-ui/.gitignore). */
 const schemaDest = join(webUiRoot, 'src', 'lib', 'schemas');
 
 mkdirSync(schemaDest, { recursive: true });
 
+function listDestSchemas() {
+	return readdirSync(schemaDest).filter((name) => name.endsWith('.json'));
+}
+
 if (!existsSync(schemaSource)) {
-	throw new Error(
-		`Schema source missing at ${schemaSource}. ` +
-			'Run from the monorepo with control-plane present, or set SCHEMA_SOURCE.'
+	const existing = listDestSchemas();
+	if (existing.length === 0) {
+		throw new Error(
+			`Schema source missing at ${schemaSource} and no schemas in ${schemaDest}. ` +
+				'Run from the monorepo, or pre-copy schemas (CI does this before docker build).'
+		);
+	}
+	console.warn(
+		`Schema source not found (${schemaSource}); using ${existing.length} schema(s) already in ${schemaDest}`
 	);
+	process.exit(0);
 }
 
 const schemaFiles = readdirSync(schemaSource).filter((name) => name.endsWith('.json'));
@@ -47,7 +56,7 @@ if (schemaFiles.length === 0) {
 	throw new Error(`No JSON schema files found in ${schemaSource}`);
 }
 
-for (const name of readdirSync(schemaDest).filter((file) => file.endsWith('.json'))) {
+for (const name of listDestSchemas()) {
 	unlinkSync(join(schemaDest, name));
 }
 
