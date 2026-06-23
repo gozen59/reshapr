@@ -21,8 +21,49 @@ import { buildMonacoYamlSchemas } from './schemas.js';
 import type * as Monaco from 'monaco-editor';
 import type { MonacoYaml } from 'monaco-yaml';
 
+type MonacoWebWorkerOptions = {
+	worker?: Worker | Promise<Worker>;
+	moduleId?: string;
+	label?: string;
+	createData?: unknown;
+	host?: Record<string, (...args: unknown[]) => unknown>;
+	keepIdleModels?: boolean;
+};
+
 let monacoPromise: Promise<typeof Monaco> | null = null;
 let monacoYamlHandle: MonacoYaml | null = null;
+
+/**
+ * monaco-worker-manager calls `monaco.editor.createWebWorker({ moduleId, label, createData })`.
+ * Monaco 0.55 expects `{ worker: Promise<Worker> }` instead — without this bridge the YAML worker
+ * silently falls back to the editor worker and completion returns nothing.
+ */
+function patchMonacoWebWorker(monaco: typeof Monaco): void {
+	const createWebWorker = monaco.editor.createWebWorker.bind(monaco.editor);
+
+	monaco.editor.createWebWorker = ((opts: MonacoWebWorkerOptions) => {
+		if (opts.moduleId && opts.label && !opts.worker) {
+			const env = globalThis.MonacoEnvironment;
+			if (!env?.getWorker) {
+				throw new Error('MonacoEnvironment.getWorker is required for monaco-yaml');
+			}
+
+			const worker = Promise.resolve(env.getWorker('workerMain.js', opts.label)).then((w) => {
+				w.postMessage('ignore');
+				w.postMessage(opts.createData);
+				return w;
+			});
+
+			return createWebWorker({
+				worker,
+				host: opts.host,
+				keepIdleModels: opts.keepIdleModels
+			});
+		}
+
+		return createWebWorker(opts as Parameters<typeof createWebWorker>[0]);
+	}) as typeof monaco.editor.createWebWorker;
+}
 
 function configureWorkers(): void {
 	if (globalThis.MonacoEnvironment) return;
@@ -49,6 +90,7 @@ export async function ensureMonacoYaml(): Promise<typeof Monaco> {
 		configureWorkers();
 		await import('monaco-editor/min/vs/editor/editor.main.css');
 		const monaco = await import('monaco-editor');
+		patchMonacoWebWorker(monaco);
 		const { configureMonacoYaml } = await import('monaco-yaml');
 
 		monacoYamlHandle?.dispose();
