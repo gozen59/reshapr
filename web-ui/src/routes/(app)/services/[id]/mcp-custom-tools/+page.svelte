@@ -42,6 +42,15 @@
 
 	const tools = $derived(result?.tools ?? []);
 
+	const artifactsHubHref = $derived(`/services/${ctx.id}/artifacts`);
+	const createCustomToolsHref = $derived(
+		`/services/${ctx.id}/artifacts/new?kind=${encodeURIComponent('CustomTools')}`,
+	);
+
+	function artifactEditHref(artifactId: string): string {
+		return `/services/${ctx.id}/artifacts/${artifactId}`;
+	}
+
 	async function load() {
 		if (!ctx.id) return;
 		loading = true;
@@ -76,6 +85,11 @@
 	<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>Refresh</Button>
 </div>
 
+<p class="text-muted-foreground mb-4 text-sm">
+	Resolved from <code class="text-xs">RESHAPR_CUSTOM_TOOLS</code> artifacts or service operations. Edit YAML via
+	<a href={artifactsHubHref} class="text-primary hover:underline">Artifacts</a>.
+</p>
+
 {#if error}
 	<ApiErrorAlert message={error} />
 {/if}
@@ -108,7 +122,14 @@
 		<Collapsible.Trigger class="text-primary text-sm font-medium hover:underline" type="button">
 			{yamlOpen ? 'Hide' : 'Show'} RESHAPR_CUSTOM_TOOLS YAML
 		</Collapsible.Trigger>
-		<Collapsible.Content class="mt-2">
+		<Collapsible.Content class="mt-2 space-y-2">
+			{#if result.artifactId}
+				<div class="flex justify-end">
+					<Button variant="outline" size="sm" href={artifactEditHref(result.artifactId)}>
+						Edit in Artifacts
+					</Button>
+				</div>
+			{/if}
 			<ScrollableCode text={result.artifactYaml} maxHeight="24rem" />
 		</Collapsible.Content>
 	</Collapsible.Root>
@@ -129,7 +150,14 @@
 				</Table.Row>
 			{:else if tools.length === 0}
 				<Table.Row>
-					<Table.Cell colspan={2} class="text-muted-foreground">No custom tools resolved.</Table.Cell>
+					<Table.Cell colspan={2} class="text-muted-foreground">
+						No custom tools resolved.
+						{#if !loading && result && result.source === 'services_operations'}
+							<a href={createCustomToolsHref} class="text-primary hover:underline">
+								Create CustomTools artifact
+							</a>
+						{/if}
+					</Table.Cell>
 				</Table.Row>
 			{:else}
 				{#each tools as t (t.name)}

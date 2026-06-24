@@ -28,6 +28,7 @@ export type McpPromptsClient = {
 }
 
 export type McpPromptArtifactYaml = {
+  id: string
   name: string
   content: string
 }
@@ -49,6 +50,7 @@ type ServiceRow = {
 }
 
 type ArtifactRow = {
+  id?: string
   type?: string
   name?: string
   content?: string | null
@@ -155,8 +157,8 @@ export async function resolveMcpPromptsForService(
   for (const artifact of promptArtifacts) {
     const label = artifact.name || `RESHAPR_PROMPTS-${artifactYamls.length + 1}`
     if (artifact.name) artifactNames.push(artifact.name)
-    if (artifact.content) {
-      artifactYamls.push({ name: label, content: artifact.content })
+    if (artifact.content && artifact.id) {
+      artifactYamls.push({ id: artifact.id, name: label, content: artifact.content })
     }
     for (const p of parseReshaprPromptsYaml(artifact.content || '')) {
       byName.set(p.name, p)
