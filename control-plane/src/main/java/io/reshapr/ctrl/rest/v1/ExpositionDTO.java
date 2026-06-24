@@ -17,7 +17,7 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  *
@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
 public record ExpositionDTO(
       String id,
       String organizationId,
-      LocalDateTime createdOn,
+      OffsetDateTime createdOn,
       GatewayGroupDTO gatewayGroup,
       ConfigurationPlanDTO configurationPlan,
       ServiceDTO service) {

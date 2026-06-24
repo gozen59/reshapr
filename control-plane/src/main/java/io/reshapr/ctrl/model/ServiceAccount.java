@@ -21,7 +21,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Type;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -43,14 +43,14 @@ public class ServiceAccount extends BaseEntity {
    @Column(name = "k8s_subject", unique = true)
    public String k8sSubject;
 
-   @Column(name="valid_until", nullable = false, columnDefinition = "TIMESTAMP")
-   public LocalDateTime validUntil;
+   @Column(name="valid_until", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime validUntil;
 
    @Type(JsonType.class)
    @Column(columnDefinition = "JSONB", name = "allowed_organizations")
    public List<String> allowedOrganizations;
 
    public boolean isValid() {
-      return validUntil != null && validUntil.isAfter(LocalDateTime.now());
+      return validUntil != null && validUntil.isAfter(OffsetDateTime.now());
    }
 }

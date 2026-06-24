@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Data Transfer Object (DTO) for an API token in the Reshapr control plane.
@@ -37,13 +37,13 @@ public class ApiTokenDTO {
    protected String name;
    // Should only be set after creation of the token.
    protected String token;
-   protected LocalDateTime validUntil;
+   protected OffsetDateTime validUntil;
    protected String username;
 
    public ApiTokenDTO() {
    }
 
-   public ApiTokenDTO(String id, String organizationId, String name, LocalDateTime validUntil, String username) {
+   public ApiTokenDTO(String id, String organizationId, String name, OffsetDateTime validUntil, String username) {
       this.id = id;
       this.organizationId = organizationId;
       this.name = name;
@@ -83,11 +83,11 @@ public class ApiTokenDTO {
       this.token = token;
    }
 
-   public LocalDateTime getValidUntil() {
+   public OffsetDateTime getValidUntil() {
       return validUntil;
    }
 
-   public void setValidUntil(LocalDateTime validUntil) {
+   public void setValidUntil(OffsetDateTime validUntil) {
       this.validUntil = validUntil;
    }
 

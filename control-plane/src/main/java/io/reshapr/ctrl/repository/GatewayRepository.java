@@ -20,7 +20,7 @@ import io.reshapr.ctrl.model.Gateway;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +44,7 @@ public class GatewayRepository implements PanacheRepositoryBase<Gateway, String>
       return find("select distinct g FROM Gateway g left join fetch g.gatewayGroups").list();
    }
 
-   public List<Gateway> findAllWithHeartbeatBefore(LocalDateTime lastHeartbeat) {
+   public List<Gateway> findAllWithHeartbeatBefore(OffsetDateTime lastHeartbeat) {
       return find("lastHeartbeat <= ?1", lastHeartbeat).list();
    }
 }

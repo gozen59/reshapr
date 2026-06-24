@@ -40,7 +40,7 @@ import org.jboss.logging.Logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -165,7 +165,7 @@ public class ServiceManagerService {
       if (service == null) {
          logger.debugf("Creating a new Service %s", discoveredService.name);
          service = discoveredService;
-         service.createdOn = LocalDateTime.now();
+         service.createdOn = OffsetDateTime.now();
       }
 
       // Set or update operation that may have changed since previous import.

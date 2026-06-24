@@ -34,7 +34,7 @@ import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -82,7 +82,7 @@ public class ServiceAccountResource {
       serviceAccount.k8sSubject = serviceAccountRequestDTO.k8sSubject();
       serviceAccount.allowedOrganizations = serviceAccountRequestDTO.allowedOrganizations();
       // Set the validity date.
-      serviceAccount.validUntil = LocalDateTime.ofInstant(
+      serviceAccount.validUntil = OffsetDateTime.ofInstant(
             Instant.ofEpochMilli(System.currentTimeMillis() + serviceAccountRequestDTO.validityDays() * 24L * 60L * 60L * 1000L),
             ZoneId.systemDefault());
       serviceAccountRepository.persistAndFlush(serviceAccount);
@@ -105,7 +105,7 @@ public class ServiceAccountResource {
       serviceAccount.k8sSubject = serviceAccountRequestDTO.k8sSubject();
       serviceAccount.allowedOrganizations = serviceAccountRequestDTO.allowedOrganizations();
       // Set the validity date.
-      serviceAccount.validUntil = LocalDateTime.ofInstant(
+      serviceAccount.validUntil = OffsetDateTime.ofInstant(
             Instant.ofEpochMilli(System.currentTimeMillis() + serviceAccountRequestDTO.validityDays() * 24L * 60L * 60L * 1000L),
             ZoneId.systemDefault());
       serviceAccountRepository.persistAndFlush(serviceAccount);

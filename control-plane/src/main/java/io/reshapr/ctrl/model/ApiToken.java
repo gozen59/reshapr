@@ -22,7 +22,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * An API token that can be used by gateways to access Reshapr control plane gRPC APIs.
@@ -42,13 +42,13 @@ public class ApiToken extends BaseEntity {
    @Column(name="organization_id", nullable = false)
    public String organizationId;
 
-   @Column(name = "valid_until", nullable = false, columnDefinition = "TIMESTAMP")
-   public LocalDateTime validUntil;
+   @Column(name = "valid_until", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime validUntil;
 
    @ManyToOne(fetch = FetchType.EAGER)
    public User user;
 
    public boolean isValid() {
-      return validUntil != null && validUntil.isAfter(LocalDateTime.now());
+      return validUntil != null && validUntil.isAfter(OffsetDateTime.now());
    }
 }

@@ -17,7 +17,7 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Data Transfer Object (DTO) for Initial Access Token in the Reshapr control plane.
@@ -35,6 +35,6 @@ public record InitialAccessTokenDTO(
       String iatId,
       String token,
       String serviceId,
-      LocalDateTime issuedAt
+      OffsetDateTime issuedAt
 ) {
 }
