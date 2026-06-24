@@ -24,7 +24,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 @Unremovable
@@ -49,7 +49,7 @@ public class GatewayRegistrationCleaner {
       logger.debugf("Triggering expired gateway registrations check...");
       // Set the tenant context to "reshapr" to include all gateways from all organizations.
       ReshaprTenantContext.setCurrentTenant("reshapr");
-      LocalDateTime lastHeartbeatThreshold = LocalDateTime.ofInstant(Instant.ofEpochMilli(System.currentTimeMillis() - 5 * 60 * 1000),
+      OffsetDateTime lastHeartbeatThreshold = OffsetDateTime.ofInstant(Instant.ofEpochMilli(System.currentTimeMillis() - 5 * 60 * 1000),
             ZoneId.systemDefault()); // 5 minutes ago
       gatewayManagerService.cleanExpiredRegistrations(lastHeartbeatThreshold);
    }

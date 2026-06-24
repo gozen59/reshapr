@@ -24,7 +24,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Type;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -44,11 +44,11 @@ public class Gateway extends TenantAwareEntity {
    @Column
    public String version;
 
-   @Column(name = "started_at", nullable = false, columnDefinition = "TIMESTAMP")
-   public LocalDateTime startedAt;
+   @Column(name = "started_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime startedAt;
 
-   @Column(name = "last_heartbeat", nullable = false, columnDefinition = "TIMESTAMP")
-   public LocalDateTime lastHeartbeat;
+   @Column(name = "last_heartbeat", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime lastHeartbeat;
 
    @Type(JsonType.class)
    @Column(columnDefinition = "JSONB")

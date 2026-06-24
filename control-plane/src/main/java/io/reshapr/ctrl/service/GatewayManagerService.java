@@ -25,7 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,11 +71,11 @@ public class GatewayManagerService {
          logger.infof("Gateway with ID %s not found, creating a new one", gatewayName);
          Gateway newGateway = new Gateway();
          newGateway.name = gatewayName;
-         newGateway.startedAt = LocalDateTime.now();
+         newGateway.startedAt = OffsetDateTime.now();
          return newGateway;
       });
 
-      gateway.lastHeartbeat = LocalDateTime.now();
+      gateway.lastHeartbeat = OffsetDateTime.now();
       gateway.fqdns = fqdns;
       gateway.labels = labels;
       gateway.version = version;
@@ -94,7 +94,7 @@ public class GatewayManagerService {
       }
 
       Gateway gateway = gatewayOpt.get();
-      gateway.lastHeartbeat = LocalDateTime.now();
+      gateway.lastHeartbeat = OffsetDateTime.now();
       gatewayRepository.persist(gateway);
       return true;
    }
@@ -115,7 +115,7 @@ public class GatewayManagerService {
    }
 
    @Transactional
-   public void cleanExpiredRegistrations(LocalDateTime beforeDate) {
+   public void cleanExpiredRegistrations(OffsetDateTime beforeDate) {
       List<Gateway> gateways = gatewayRepository.findAllWithHeartbeatBefore(beforeDate);
       if (!gateways.isEmpty()) {
          logger.infof("Cleaning %d expired gateway registrations", gateways.size());

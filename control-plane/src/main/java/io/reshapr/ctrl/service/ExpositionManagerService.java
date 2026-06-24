@@ -32,7 +32,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.jboss.logging.Logger;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -101,7 +101,7 @@ public class ExpositionManagerService {
       exposition.configurationPlan = configurationPlan;
       exposition.gatewayGroup = gatewayGroup.get();
       exposition.service = configurationPlan.service;
-      exposition.createdOn = LocalDateTime.now();
+      exposition.createdOn = OffsetDateTime.now();
       expositionRepository.persistAndFlush(exposition);
 
       // Publish the exposition creation event.

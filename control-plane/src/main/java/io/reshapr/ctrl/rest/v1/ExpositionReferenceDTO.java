@@ -17,7 +17,7 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Data Transfer Object (DTO) for an exposition reference in the Reshapr control plane.
@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
 public record ExpositionReferenceDTO(
       String id,
       String organizationId,
-      LocalDateTime createdOn,
+      OffsetDateTime createdOn,
       String gatewayGroupId,
       String configurationPlanId) {
 }

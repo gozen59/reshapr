@@ -18,7 +18,7 @@ package io.reshapr.ctrl.rest.v1;
 import io.reshapr.ctrl.model.ServiceType;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * ServiceDTO is a Data Transfer Object representing a service in the Reshapr control plane.
@@ -35,6 +35,6 @@ public record ServiceDTO(
       String organizationId,
       String name,
       String version,
-      LocalDateTime createdOn,
+      OffsetDateTime createdOn,
       ServiceType type) {
 }

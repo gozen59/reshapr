@@ -27,7 +27,7 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -46,8 +46,8 @@ public class Service extends TenantAwareEntity {
    @Column(nullable = false)
    public String version;
 
-   @Column(name = "created_on", nullable = false, columnDefinition = "TIMESTAMP")
-   public LocalDateTime createdOn;
+   @Column(name = "created_on", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime createdOn;
 
    @Enumerated(EnumType.STRING)
    public ServiceType type;

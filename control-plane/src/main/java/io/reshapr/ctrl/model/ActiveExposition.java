@@ -27,7 +27,7 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -39,8 +39,8 @@ import java.util.List;
 @Table(name = "active_expositions")
 public class ActiveExposition extends TenantAwareEntity {
 
-   @Column(name = "created_on", columnDefinition = "TIMESTAMP")
-   public LocalDateTime createdOn;
+   @Column(name = "created_on", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime createdOn;
 
    @Embedded
    @AttributeOverride(name="id", column=@Column(name="service_id"))

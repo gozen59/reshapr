@@ -33,6 +33,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -151,7 +152,7 @@ public class ReshaprCtrlApp {
                   apiToken.name = tokenName;
                   apiToken.token = token;
                   apiToken.organizationId = ROOT_TENANT_ID;
-                  apiToken.validUntil = LocalDateTime.parse("2027-12-24 23:59:59", formatter);
+                  apiToken.validUntil = LocalDateTime.parse("2027-12-24 23:59:59", formatter).atOffset(ZoneOffset.UTC);
                   if (admin != null) {
                      apiToken.user = admin;
                   }

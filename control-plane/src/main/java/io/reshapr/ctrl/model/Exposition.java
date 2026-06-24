@@ -25,7 +25,7 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 /**
  * An exposition that defines how a service is exposed via Reshapr gateways.
  * @author laurent
@@ -36,8 +36,8 @@ import java.time.LocalDateTime;
 })
 public class Exposition extends TenantAwareEntity {
 
-   @Column(name = "created_on", columnDefinition = "TIMESTAMP")
-   public LocalDateTime createdOn;
+   @Column(name = "created_on", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+   public OffsetDateTime createdOn;
 
    @ManyToOne(fetch = FetchType.EAGER)
    @Fetch(FetchMode.JOIN)

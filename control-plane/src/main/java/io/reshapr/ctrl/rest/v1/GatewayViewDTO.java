@@ -17,7 +17,7 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -39,8 +39,8 @@ public record GatewayViewDTO(
       String organizationId,
       String name,
       String version,
-      LocalDateTime startedAt,
-      LocalDateTime lastHeartbeat,
+      OffsetDateTime startedAt,
+      OffsetDateTime lastHeartbeat,
       List<String> fqdns,
       Map<String, String> labels,
       List<GatewayGroupDTO> gatewayGroups) {

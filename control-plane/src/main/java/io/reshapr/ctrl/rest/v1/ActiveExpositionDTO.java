@@ -17,14 +17,14 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @RegisterForReflection
 public record ActiveExpositionDTO(
       String id,
       String organizationId,
-      LocalDateTime createdOn,
+      OffsetDateTime createdOn,
       ServiceSummaryDTO service,
       ConfigurationPlanSummaryDTO configurationPlan,
       List<GatewayDTO> gateways) {

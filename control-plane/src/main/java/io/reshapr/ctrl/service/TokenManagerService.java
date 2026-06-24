@@ -26,7 +26,7 @@ import org.jboss.logging.Logger;
 
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
@@ -75,7 +75,7 @@ public class TokenManagerService {
       token.organizationId = organizationId;
       token.user = user;
       // Set the validity date.
-      token.validUntil = LocalDateTime.ofInstant(
+      token.validUntil = OffsetDateTime.ofInstant(
             Instant.ofEpochMilli(System.currentTimeMillis() + validityDays * 24L * 60L * 60L * 1000L),
             ZoneId.systemDefault());
       apiTokenRepository.persist(token);

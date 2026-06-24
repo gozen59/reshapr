@@ -17,7 +17,7 @@ package io.reshapr.ctrl.rest.v1;
 
 import io.reshapr.ctrl.model.ServiceType;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -35,7 +35,7 @@ public record ServiceViewDTO(
       String organizationId,
       String name,
       String version,
-      LocalDateTime createdOn,
+      OffsetDateTime createdOn,
       ServiceType type,
       List<OperationDTO> operations) {
 }
