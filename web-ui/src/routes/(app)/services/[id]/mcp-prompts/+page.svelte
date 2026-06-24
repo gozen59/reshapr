@@ -36,6 +36,13 @@
 
 	const prompts = $derived(result?.prompts ?? []);
 
+	const artifactsHubHref = $derived(`/services/${ctx.id}/artifacts`);
+	const createPromptsHref = $derived(`/services/${ctx.id}/artifacts/new?kind=${encodeURIComponent('Prompts')}`);
+
+	function artifactEditHref(artifactId: string): string {
+		return `/services/${ctx.id}/artifacts/${artifactId}`;
+	}
+
 	function formatArguments(
 		args: { name: string; description?: string; required?: boolean }[] | undefined,
 	): string {
@@ -77,7 +84,7 @@
 
 <p class="text-muted-foreground mb-4 text-sm">
 	Resolved from <code class="text-xs">RESHAPR_PROMPTS</code> artifacts on this service. Attach prompts via
-	<a href="/artifacts" class="text-primary hover:underline">Artifacts</a>.
+	<a href={artifactsHubHref} class="text-primary hover:underline">Artifacts</a>.
 </p>
 
 {#if error}
@@ -100,9 +107,14 @@
 			{yamlOpen ? 'Hide' : 'Show'} artifact YAML
 		</Collapsible.Trigger>
 		<Collapsible.Content class="mt-2 space-y-4">
-			{#each result.artifactYamls as art (art.name)}
+			{#each result.artifactYamls as art (art.id)}
 				<div>
-					<p class="mb-1 text-sm font-medium">{art.name}</p>
+					<div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+						<p class="text-sm font-medium">{art.name}</p>
+						<Button variant="outline" size="sm" href={artifactEditHref(art.id)}>
+							Edit in Artifacts
+						</Button>
+					</div>
 					<ScrollableCode text={art.content} maxHeight="16rem" />
 				</div>
 			{/each}
@@ -126,7 +138,12 @@
 				</Table.Row>
 			{:else if prompts.length === 0}
 				<Table.Row>
-					<Table.Cell colspan={3} class="text-muted-foreground">No prompts.</Table.Cell>
+					<Table.Cell colspan={3} class="text-muted-foreground">
+						No prompts.
+						{#if !loading && result && result.artifactYamls.length === 0}
+							<a href={createPromptsHref} class="text-primary hover:underline">Create Prompts artifact</a>
+						{/if}
+					</Table.Cell>
 				</Table.Row>
 			{:else}
 				{#each prompts as p (p.name)}

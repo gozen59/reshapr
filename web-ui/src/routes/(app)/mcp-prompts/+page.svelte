@@ -42,6 +42,14 @@
 
 	const prompts = $derived(result?.prompts ?? []);
 
+	function artifactEditHref(serviceId: string, artifactId: string): string {
+		return `/services/${serviceId}/artifacts/${artifactId}`;
+	}
+
+	function artifactsHubHref(serviceId: string): string {
+		return `/services/${serviceId}/artifacts`;
+	}
+
 	async function runListPrompts(url: string) {
 		const trimmed = url.trim();
 		if (!trimmed) {
@@ -286,7 +294,12 @@
 					</Table.Root>
 				</div>
 			{:else}
-				<p class="text-muted-foreground text-sm">No prompts found in the artifact YAML.</p>
+				<p class="text-muted-foreground text-sm">
+					No prompts found in the artifact YAML.
+					<a href={artifactsHubHref(result.serviceId)} class="text-primary hover:underline">
+						Open Artifacts hub
+					</a>
+				</p>
 			{/if}
 
 			{#if result.artifactYamls.length > 0}
@@ -301,9 +314,18 @@
 						</span>
 					</Collapsible.Trigger>
 					<Collapsible.Content class="space-y-3 border-t p-3">
-						{#each result.artifactYamls as artifact (artifact.name)}
+						{#each result.artifactYamls as artifact (artifact.id)}
 							<div class="space-y-1">
-								<p class="text-muted-foreground text-xs font-medium">{artifact.name}</p>
+								<div class="flex flex-wrap items-center justify-between gap-2">
+									<p class="text-muted-foreground text-xs font-medium">{artifact.name}</p>
+									<Button
+										variant="outline"
+										size="sm"
+										href={artifactEditHref(result.serviceId, artifact.id)}
+									>
+										Edit in Artifacts
+									</Button>
+								</div>
 								<ScrollableCode
 									text={artifact.content}
 									maxHeight="min(70vh, 28rem)"
