@@ -19,21 +19,19 @@
 	import { page } from '$app/state';
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import {
-		artifactTypeLabel,
 		buildTemplate,
 		getKindDefinition,
 		getKindForArtifactType,
 		isEditableArtifactType,
 		parseArtifactDetail,
-		type ArtifactType,
+		type ArtifactDetail,
+		type EditorMode,
 		type ReshaprArtifactKind
 	} from '$lib/artifacts/index.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
-	import YamlMonacoEditor from '$lib/components/YamlMonacoEditor.svelte';
+	import CustomArtifactEditor from '$lib/components/CustomArtifactEditor.svelte';
 	import { SERVICE_CONTEXT_KEY, type ServiceContextValue } from '$lib/serviceContext.js';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
 
 	const ctx = getContext<ServiceContextValue>(SERVICE_CONTEXT_KEY);
 
@@ -42,40 +40,41 @@
 	const createKind = $derived(
 		(page.url.searchParams.get('kind') as ReshaprArtifactKind | null) ?? 'Prompts'
 	);
-	const createKindDef = $derived(getKindDefinition(createKind));
 
 	let error = $state<string | null>(null);
 	let loading = $state(false);
-	let artifactName = $state<string | null>(null);
-	let artifactType = $state<ArtifactType | null>(null);
-	let artifactContent = $state('');
+	let artifact = $state<ArtifactDetail | null>(null);
 
 	const listHref = $derived(`/services/${ctx.id}/artifacts`);
 
-	const schemaUri = $derived(
-		isCreate
-			? createKindDef?.schemaPath
-			: artifactType
-				? getKindForArtifactType(artifactType)?.schemaPath
-				: undefined
-	);
+	const mode = $derived.by((): EditorMode => {
+		if (isCreate) return 'create';
+		if (artifact && isEditableArtifactType(artifact.type)) return 'edit';
+		return 'view';
+	});
 
-	const editorValue = $derived(
-		isCreate
-			? buildTemplate(createKind, {
-					name: ctx.service?.name ?? '—',
-					version: ctx.service?.version ?? '—'
-				})
-			: artifactContent
-	);
+	const kind = $derived.by((): ReshaprArtifactKind => {
+		if (isCreate) return createKind;
+		return getKindForArtifactType(artifact?.type ?? 'JSON_FRAGMENT')?.kind ?? createKind;
+	});
+
+	const initialContent = $derived.by((): string => {
+		if (isCreate) {
+			return buildTemplate(createKind, {
+				name: ctx.service?.name ?? '—',
+				version: ctx.service?.version ?? '—'
+			});
+		}
+		return artifact?.content ?? '';
+	});
+
+	const createKindDef = $derived(getKindDefinition(createKind));
 
 	async function loadArtifact() {
 		if (isCreate || !artifactId) return;
 		loading = true;
 		error = null;
-		artifactName = null;
-		artifactType = null;
-		artifactContent = '';
+		artifact = null;
 		try {
 			const raw = await apiClient().getArtifact(artifactId);
 			const detail = parseArtifactDetail(raw);
@@ -83,9 +82,7 @@
 				error = 'Artifact not found or invalid response.';
 				return;
 			}
-			artifactName = detail.name;
-			artifactType = detail.type;
-			artifactContent = detail.content ?? '';
+			artifact = detail;
 		} catch (e) {
 			error = e instanceof ApiError ? e.message : String(e);
 		} finally {
@@ -111,38 +108,19 @@
 
 {#if error}
 	<ApiErrorAlert message={error} />
-{/if}
-
-<Card.Root class="mb-4">
-	<Card.Header>
-		<Card.Title>
-			{#if isCreate}
-				{createKindDef?.label ?? createKind}
-			{:else if loading}
-				Loading…
-			{:else}
-				{artifactName ?? artifactId}
-			{/if}
-		</Card.Title>
-		<Card.Description>
-			{#if isCreate}
-				Template preview (read-only). Save flow ships in release 4.
-			{:else if artifactType}
-				Type: {artifactTypeLabel(artifactType)}
-				{#if !isEditableArtifactType(artifactType)}
-					<Badge variant="outline" class="ml-2">Read-only</Badge>
-				{:else}
-					<Badge variant="secondary" class="ml-2">Read-only preview</Badge>
-				{/if}
-			{:else if !loading}
-				YAML source
-			{/if}
-		</Card.Description>
-	</Card.Header>
-</Card.Root>
-
-{#if isCreate || (!loading && !error)}
-	<YamlMonacoEditor value={editorValue} readOnly={true} {schemaUri} height="min(70vh, 32rem)" />
+{:else if isCreate && !createKindDef}
+	<ApiErrorAlert message="Unknown artifact kind. Pick a kind from the Artifacts list." />
+{:else if isCreate || (!loading && artifact)}
+	{#key `${artifactId}-${kind}-${artifact?.id ?? 'new'}`}
+		<CustomArtifactEditor
+			{mode}
+			{kind}
+			{initialContent}
+			{listHref}
+			artifactName={artifact?.name}
+			artifactType={artifact?.type}
+		/>
+	{/key}
 {:else if loading}
 	<p class="text-muted-foreground text-sm">Loading artifact content…</p>
 {/if}
