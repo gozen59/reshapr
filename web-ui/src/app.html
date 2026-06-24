@@ -20,6 +20,19 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Apply the persisted theme before first paint to avoid a flash of the
+			// wrong theme. Keep the storage key in sync with stores/theme.svelte.ts.
+			(function () {
+				try {
+					var pref = localStorage.getItem('reshapr-theme') || 'system';
+					var dark = pref === 'dark'
+						|| (pref === 'system'
+							&& window.matchMedia('(prefers-color-scheme: dark)').matches);
+					if (dark) document.documentElement.classList.add('dark');
+				} catch (e) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

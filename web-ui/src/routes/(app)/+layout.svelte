@@ -20,6 +20,7 @@
   import { page } from '$app/state';
   import { auth } from '$lib/stores/auth.svelte.js';
   import { sidebar } from '$lib/stores/sidebar.svelte.js';
+  import { theme } from '$lib/stores/theme.svelte.js';
   import { getBootstrapConfig } from '$lib/api/config.js';
   import { cn } from '$lib/utils.js';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -30,13 +31,16 @@
     ApiGatewayIcon,
     Building01Icon,
     ChevronDownIcon,
+    ComputerIcon,
     DashboardSquare02Icon,
     FlaskConicalIcon,
     Logout01Icon,
     McpServerIcon,
+    Moon02Icon,
     SidebarLeft01Icon,
     SidebarRight01Icon,
     SquareLock02Icon,
+    Sun03Icon,
     TagsIcon,
     UserIcon
   } from '@hugeicons/core-free-icons';
@@ -58,6 +62,8 @@
   ] as const;
 
   onMount(async () => {
+    theme.init();
+
     const hasSession = await auth.initSession();
     if (!hasSession) {
       goto('/login');
@@ -369,6 +375,23 @@
               <HugeiconsIcon icon={UserIcon} size={16} />
               <span>Account</span>
             </a>
+            <!-- Theme toggle: cycles Light → Dark → System. Keep the menu open so
+                 the user can see the change and keep cycling. -->
+            <button
+              onclick={(e) => { e.stopPropagation(); theme.cycle(); }}
+              class="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors whitespace-nowrap"
+            >
+              {#if theme.preference === 'light'}
+                <HugeiconsIcon icon={Sun03Icon} size={16} />
+                <span>Theme: Light</span>
+              {:else if theme.preference === 'dark'}
+                <HugeiconsIcon icon={Moon02Icon} size={16} />
+                <span>Theme: Dark</span>
+              {:else}
+                <HugeiconsIcon icon={ComputerIcon} size={16} />
+                <span>Theme: System</span>
+              {/if}
+            </button>
             <button
               onclick={handleSignOut}
               class="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors whitespace-nowrap"
