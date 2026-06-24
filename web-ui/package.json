@@ -3,6 +3,10 @@
   "version": "0.0.15-SNAPSHOT",
   "private": true,
   "scripts": {
+    "copy-schemas": "node scripts/copy-schemas.mjs",
+    "predev": "npm run copy-schemas",
+    "prebuild": "npm run copy-schemas",
+    "precheck": "npm run copy-schemas",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
