@@ -21,7 +21,7 @@ const API_VERSION = 'reshapr.io/v1alpha1';
 function serviceBlock(service: ServiceRef): string {
 	return `service:
   name: ${service.name}
-  version: ${service.version}`;
+  version: '${service.version}'`;
 }
 
 const PAYLOAD_BY_KIND: Record<ReshaprArtifactKind, string> = {

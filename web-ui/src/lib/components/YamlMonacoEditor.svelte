@@ -18,6 +18,8 @@
 	import { onMount } from 'svelte';
 	import { ensureMonacoYaml, getMonacoYamlHandle } from '$lib/monaco/setup.js';
 	import { artifactModelUri, buildMonacoYamlSchemaForPath } from '$lib/monaco/schemas.js';
+	import { RESHAPR_DARK_THEME, defineReshaprDarkTheme } from '$lib/monaco/theme.js';
+	import { theme } from '$lib/stores/theme.svelte.js';
 	import ScrollableCode from '$lib/components/ScrollableCode.svelte';
 	import type * as Monaco from 'monaco-editor';
 
@@ -41,11 +43,19 @@
 	let container = $state<HTMLDivElement | null>(null);
 	let editor = $state<Monaco.editor.IStandaloneCodeEditor | null>(null);
 	let model = $state<Monaco.editor.ITextModel | null>(null);
+	let monacoRef = $state<typeof Monaco | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
 	let validationMarkers = $state<Monaco.editor.IMarker[]>([]);
+	let lineCount = $state(0);
+
+	/** Minimap is only shown for documents larger than this many lines. */
+	const MINIMAP_LINE_THRESHOLD = 50;
 
 	const heightStyle = $derived(typeof height === 'number' ? `${height}px` : height);
+	const minimapEnabled = $derived(lineCount > MINIMAP_LINE_THRESHOLD);
+	// Sync with the app theme: minimalist reshapr-dark (based on vs-dark) or built-in vs.
+	const monacoTheme = $derived(theme.resolved === 'dark' ? RESHAPR_DARK_THEME : 'vs');
 	const schemaErrors = $derived(validationMarkers.filter((marker) => marker.severity === 8));
 	const yamlMarkers = $derived(validationMarkers);
 	const showValidationSummary = $derived(
@@ -63,12 +73,15 @@
 		let disposed = false;
 		let markerDisposable: Monaco.IDisposable | null = null;
 		let contentDisposable: Monaco.IDisposable | null = null;
+		let lineCountDisposable: Monaco.IDisposable | null = null;
 
 		void (async () => {
 			if (!container) return;
 			try {
 				const monaco = await ensureMonacoYaml();
 				if (disposed || !container) return;
+				monacoRef = monaco;
+				if (theme.resolved === 'dark') defineReshaprDarkTheme(monaco);
 
 				if (schemaUri) {
 					getMonacoYamlHandle()?.update({
@@ -81,18 +94,22 @@
 				);
 				const textModel = monaco.editor.createModel(value, 'yaml', uri);
 				model = textModel;
+				lineCount = textModel.getLineCount();
+				lineCountDisposable = textModel.onDidChangeContent(() => {
+					lineCount = textModel.getLineCount();
+				});
 
 				const instance = monaco.editor.create(container, {
 					model: textModel,
 					language: 'yaml',
 					readOnly,
 					automaticLayout: true,
-					minimap: { enabled: false },
+					minimap: { enabled: minimapEnabled },
 					scrollBeyondLastLine: false,
 					wordWrap: 'on',
 					tabSize: 2,
 					fontSize: 13,
-					theme: 'vs',
+					theme: monacoTheme,
 					quickSuggestions: {
 						other: 'on',
 						comments: 'off',
@@ -133,6 +150,7 @@
 			disposed = true;
 			markerDisposable?.dispose();
 			contentDisposable?.dispose();
+			lineCountDisposable?.dispose();
 			editor?.dispose();
 			model?.dispose();
 			editor = null;
@@ -154,6 +172,19 @@
 		if (!editor) return;
 		editor.updateOptions({ readOnly });
 	});
+
+	$effect(() => {
+		// Toggle the minimap based on the document length.
+		editor?.updateOptions({ minimap: { enabled: minimapEnabled } });
+	});
+
+	$effect(() => {
+		// Keep the editor theme in sync with the application theme (setTheme is global).
+		const monaco = monacoRef;
+		if (!monaco) return;
+		if (theme.resolved === 'dark') defineReshaprDarkTheme(monaco);
+		monaco.editor.setTheme(monacoTheme);
+	});
 </script>
 
 {#if loadError}
@@ -169,24 +200,26 @@
 				Loading editor…
 			</div>
 		{/if}
+		{#if showValidationSummary}
+			<div
+				class="border-destructive/40 bg-background/95 absolute inset-x-2 bottom-2 z-10 rounded-md border px-3 py-2 text-xs shadow-md backdrop-blur-sm"
+			>
+				<p class="text-destructive font-medium">
+					{schemaErrors.length > 0
+						? `${schemaErrors.length} schema ${schemaErrors.length === 1 ? 'error' : 'errors'}`
+						: `${yamlMarkers.length} schema ${yamlMarkers.length === 1 ? 'warning' : 'warnings'}`}
+				</p>
+				<ul class="text-muted-foreground mt-1 space-y-0.5">
+					{#each yamlMarkers.slice(0, 5) as marker (marker.message + marker.startLineNumber)}
+						<li>
+							Line {marker.startLineNumber}: {marker.message}
+						</li>
+					{/each}
+					{#if yamlMarkers.length > 5}
+						<li>…and {yamlMarkers.length - 5} more</li>
+					{/if}
+				</ul>
+			</div>
+		{/if}
 	</div>
-	{#if showValidationSummary}
-		<div class="border-destructive/30 bg-destructive/5 mt-2 rounded-md border px-3 py-2 text-xs">
-			<p class="text-destructive font-medium">
-				{schemaErrors.length > 0
-					? `${schemaErrors.length} schema ${schemaErrors.length === 1 ? 'error' : 'errors'}`
-					: `${yamlMarkers.length} schema ${yamlMarkers.length === 1 ? 'warning' : 'warnings'}`}
-			</p>
-			<ul class="text-muted-foreground mt-1 space-y-0.5">
-				{#each yamlMarkers.slice(0, 5) as marker (marker.message + marker.startLineNumber)}
-					<li>
-						Line {marker.startLineNumber}: {marker.message}
-					</li>
-				{/each}
-				{#if yamlMarkers.length > 5}
-					<li>…and {yamlMarkers.length - 5} more</li>
-				{/if}
-			</ul>
-		</div>
-	{/if}
 {/if}

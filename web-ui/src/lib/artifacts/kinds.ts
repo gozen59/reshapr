@@ -92,6 +92,23 @@ export function getKindDefinition(kind: ReshaprArtifactKind): KindDefinition | u
 	return EDITABLE_KINDS.find((def) => def.kind === kind);
 }
 
+/**
+ * Build the default title proposed when creating a new custom artifact.
+ * Uses the kind label as base name and appends ` (n)` when artifacts with the
+ * same name already exist, picking the smallest free index (starting at 2).
+ */
+export function buildDefaultArtifactTitle(
+	kind: ReshaprArtifactKind,
+	existingNames: string[] = []
+): string {
+	const base = getKindDefinition(kind)?.label ?? kind;
+	const taken = new Set(existingNames.map((name) => name.trim()).filter(Boolean));
+	if (!taken.has(base)) return base;
+	let index = 2;
+	while (taken.has(`${base} (${index})`)) index++;
+	return `${base} (${index})`;
+}
+
 export function getKindForArtifactType(type: ArtifactType): KindDefinition | undefined {
 	return KIND_BY_TYPE.get(type);
 }
