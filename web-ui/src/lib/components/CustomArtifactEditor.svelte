@@ -18,22 +18,22 @@
 	import { goto } from '$app/navigation';
 	import { apiClient, ApiError } from '$lib/api/client.js';
 	import {
-		artifactTypeLabel,
+		buildDefaultArtifactTitle,
 		extractKindFromYaml,
 		getKindDefinition,
 		saveCustomArtifact,
-		type ArtifactType,
 		type EditorMode,
 		type ReshaprArtifactKind
 	} from '$lib/artifacts/index.js';
 	import ApiErrorAlert from '$lib/components/ApiErrorAlert.svelte';
 	import YamlMonacoEditor from '$lib/components/YamlMonacoEditor.svelte';
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import CheckIcon from '@lucide/svelte/icons/check';
 	import type * as Monaco from 'monaco-editor';
 
-	const MONACO_ERROR_SEVERITY = 8;
+	const MONACO_WARNING_SEVERITY = 4;
 
 	let {
 		mode,
@@ -41,14 +41,14 @@
 		initialContent,
 		listHref,
 		artifactName = undefined,
-		artifactType = undefined
+		existingNames = []
 	}: {
 		mode: EditorMode;
 		kind: ReshaprArtifactKind;
 		initialContent: string;
 		listHref: string;
 		artifactName?: string;
-		artifactType?: ArtifactType;
+		existingNames?: string[];
 	} = $props();
 
 	let content = $state('');
@@ -57,21 +57,75 @@
 	let saveError = $state<string | null>(null);
 	let saving = $state(false);
 
+	let title = $state('');
+	let titleDirty = $state(false);
+	let editingTitle = $state(false);
+	let titleInputRef = $state<HTMLInputElement | null>(null);
+
 	const kindDef = $derived(getKindDefinition(kind));
 	const editable = $derived(mode === 'create' || mode === 'edit');
 	const schemaUri = $derived(editable ? kindDef?.schemaPath : undefined);
 	const schemaErrors = $derived(
-		validationMarkers.filter((marker) => marker.severity === MONACO_ERROR_SEVERITY)
+		validationMarkers.filter((marker) => marker.severity >= MONACO_WARNING_SEVERITY)
 	);
 	const canSave = $derived(
 		editable && !saving && content.trim().length > 0 && schemaErrors.length === 0
 	);
+
+	const defaultTitle = $derived(
+		mode === 'create'
+			? buildDefaultArtifactTitle(kind, existingNames)
+			: (artifactName ?? 'Artifact')
+	);
+
+	// Keep the title in sync with the default until the user edits it manually.
+	$effect(() => {
+		if (!titleDirty) title = defaultTitle;
+	});
+
+	// Focus and select the input when entering title edit mode.
+	$effect(() => {
+		if (editingTitle && titleInputRef) {
+			titleInputRef.focus();
+			titleInputRef.select();
+		}
+	});
 
 	$effect(() => {
 		if (initialContent === contentSeed) return;
 		contentSeed = initialContent;
 		content = initialContent;
 	});
+
+	function startEditTitle() {
+		editingTitle = true;
+	}
+
+	function commitTitle() {
+		const trimmed = title.trim();
+		if (!trimmed) {
+			titleDirty = false;
+			title = defaultTitle;
+		} else {
+			title = trimmed;
+			titleDirty = true;
+		}
+		editingTitle = false;
+	}
+
+	function cancelTitle() {
+		editingTitle = false;
+	}
+
+	function onTitleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			commitTitle();
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			cancelTitle();
+		}
+	}
 
 	async function onSave() {
 		if (!canSave) return;
@@ -89,7 +143,7 @@
 
 		saving = true;
 		try {
-			await saveCustomArtifact(apiClient(), content, kind);
+			await saveCustomArtifact(apiClient(), content, kind, title.trim() || undefined);
 			await goto(listHref);
 		} catch (e) {
 			saveError = e instanceof ApiError ? e.message : String(e);
@@ -99,37 +153,41 @@
 	}
 </script>
 
-<Card.Root class="mb-4">
-	<Card.Header>
-		<Card.Title>
-			{#if mode === 'create'}
-				{kindDef?.label ?? kind}
-			{:else}
-				{artifactName ?? 'Artifact'}
-			{/if}
-		</Card.Title>
-		<Card.Description>
-			{#if mode === 'create'}
-				New custom artifact — edit the YAML below and save to attach it to this service.
-				Schema suggestions appear while typing, or use the suggest shortcut
-				(<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> /
-				<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+.</kbd> on macOS).
-			{:else if artifactType}
-				Type: {artifactTypeLabel(artifactType)}
-				{#if editable}
-					<Badge variant="secondary" class="ml-2">Editable</Badge>
-					— JSON Schema validation and completion. Saving replaces the artifact of this type.
-					For nested keys (e.g. <code class="text-xs">title</code> under a prompt), trigger suggest on
-					a new line before or while typing
-					(<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+Space</kbd> /
-					<kbd class="bg-muted rounded px-1 font-mono text-xs">Ctrl+.</kbd> on macOS).
-				{:else}
-					<Badge variant="outline" class="ml-2">Read-only</Badge>
-				{/if}
-			{/if}
-		</Card.Description>
-	</Card.Header>
-</Card.Root>
+<div class="mb-4 flex min-h-9 items-center gap-2">
+	{#if mode === 'create' && editingTitle}
+		<Input
+			bind:ref={titleInputRef}
+			bind:value={title}
+			class="h-9 max-w-md text-lg font-semibold"
+			aria-label="Artifact title"
+			onkeydown={onTitleKeydown}
+			onblur={commitTitle}
+		/>
+		<Button
+			variant="ghost"
+			size="icon"
+			class="size-8"
+			aria-label="Confirm title"
+			onmousedown={(e) => e.preventDefault()}
+			onclick={commitTitle}
+		>
+			<CheckIcon class="size-4" />
+		</Button>
+	{:else}
+		<h2 class="text-lg font-semibold break-all">{title}</h2>
+		{#if mode === 'create'}
+			<Button
+				variant="ghost"
+				size="icon"
+				class="size-8"
+				aria-label="Edit title"
+				onclick={startEditTitle}
+			>
+				<PencilIcon class="size-4" />
+			</Button>
+		{/if}
+	{/if}
+</div>
 
 {#if saveError}
 	<div class="mb-4">
@@ -156,8 +214,5 @@
 			{saving ? 'Saving…' : 'Save'}
 		</Button>
 		<Button variant="outline" href={listHref} disabled={saving}>Cancel</Button>
-		{#if schemaErrors.length > 0}
-			<p class="text-destructive text-sm">Fix schema errors before saving.</p>
-		{/if}
 	</div>
 {/if}

@@ -21,8 +21,8 @@ export type AttachArtifactClient = {
 };
 
 /** Build a YAML file for POST `/api/v1/artifacts/attach`. */
-export function yamlToAttachFile(content: string, kind: ReshaprArtifactKind): File {
-	const filename = `${kind}.yaml`;
+export function yamlToAttachFile(content: string, kind: ReshaprArtifactKind, name?: string): File {
+	const filename = name?.trim() ? name.trim() : `${kind}.yaml`;
 	return new File([content], filename, { type: 'application/x-yaml' });
 }
 
@@ -30,9 +30,10 @@ export function yamlToAttachFile(content: string, kind: ReshaprArtifactKind): Fi
 export async function saveCustomArtifact(
 	client: AttachArtifactClient,
 	content: string,
-	kind: ReshaprArtifactKind
+	kind: ReshaprArtifactKind,
+	name?: string
 ): Promise<unknown> {
-	return client.attachArtifactFile(yamlToAttachFile(content, kind));
+	return client.attachArtifactFile(yamlToAttachFile(content, kind, name));
 }
 
 export function formatAttachSuccess(out: unknown): string {

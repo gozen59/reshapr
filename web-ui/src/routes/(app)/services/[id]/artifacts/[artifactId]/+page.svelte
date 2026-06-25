@@ -24,6 +24,7 @@
 		getKindForArtifactType,
 		isEditableArtifactType,
 		parseArtifactDetail,
+		parseArtifactRefList,
 		type ArtifactDetail,
 		type EditorMode,
 		type ReshaprArtifactKind
@@ -44,6 +45,7 @@
 	let error = $state<string | null>(null);
 	let loading = $state(false);
 	let artifact = $state<ArtifactDetail | null>(null);
+	let existingNames = $state<string[]>([]);
 
 	const listHref = $derived(`/services/${ctx.id}/artifacts`);
 
@@ -93,6 +95,20 @@
 	$effect(() => {
 		if (ctx.id && !ctx.loading && !isCreate && artifactId) void loadArtifact();
 	});
+
+	async function loadExistingNames() {
+		if (!isCreate || !ctx.id) return;
+		try {
+			const list = await apiClient().listArtifactRefsByService(ctx.id);
+			existingNames = parseArtifactRefList(list).map((ref) => ref.name);
+		} catch {
+			existingNames = [];
+		}
+	}
+
+	$effect(() => {
+		if (ctx.id && !ctx.loading && isCreate) void loadExistingNames();
+	});
 </script>
 
 <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
@@ -118,7 +134,7 @@
 			{initialContent}
 			{listHref}
 			artifactName={artifact?.name}
-			artifactType={artifact?.type}
+			{existingNames}
 		/>
 	{/key}
 {:else if loading}
