@@ -45,6 +45,10 @@
 
 	const tools = $derived(result?.tools ?? []);
 
+	function artifactEditHref(serviceId: string, artifactId: string): string {
+		return `/services/${serviceId}/artifacts/${artifactId}`;
+	}
+
 	async function runResolve(url: string) {
 		const trimmed = url.trim();
 		if (!trimmed) {
@@ -276,7 +280,18 @@
 							{yamlOpen ? 'Hide' : 'Show'}
 						</span>
 					</Collapsible.Trigger>
-					<Collapsible.Content class="border-t px-2 pb-2">
+					<Collapsible.Content class="space-y-2 border-t px-2 pb-2 pt-2">
+						{#if result.artifactId}
+							<div class="flex justify-end px-1">
+								<Button
+									variant="outline"
+									size="sm"
+									href={artifactEditHref(result.serviceId, result.artifactId)}
+								>
+									Edit in Artifacts
+								</Button>
+							</div>
+						{/if}
 						<ScrollableCode text={result.artifactYaml} maxHeight="min(70vh, 28rem)" class="border-0" />
 					</Collapsible.Content>
 				</Collapsible.Root>
