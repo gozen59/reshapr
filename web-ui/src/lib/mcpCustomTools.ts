@@ -39,6 +39,8 @@ export type McpCustomToolsResolution = {
   source: 'artifacts_custom_tools' | 'services_operations'
   expoId: string
   serviceId: string
+  /** Control-plane artifact id when tools come from `RESHAPR_CUSTOM_TOOLS`. */
+  artifactId?: string
   /** Full `RESHAPR_CUSTOM_TOOLS` artifact YAML when tools come from that artifact. */
   artifactYaml?: string
 }
@@ -225,6 +227,7 @@ type ServiceRow = {
 }
 
 type ArtifactRow = {
+  id?: string
   type?: string
   content?: string | null
 }
@@ -291,6 +294,7 @@ export async function resolveMcpCustomToolsForService(
         source: 'artifacts_custom_tools',
         expoId: '',
         serviceId,
+        artifactId: yamlArtifact?.id,
         artifactYaml: yamlArtifact?.content ?? undefined,
       }
     }
@@ -324,6 +328,7 @@ export async function resolveMcpCustomToolsForService(
       source: 'artifacts_custom_tools',
       expoId: expo.id,
       serviceId,
+      artifactId: yamlArtifact?.id,
       artifactYaml: yamlArtifact?.content ?? undefined,
     }
   }
