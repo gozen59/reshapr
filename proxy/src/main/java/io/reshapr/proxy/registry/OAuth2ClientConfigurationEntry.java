@@ -15,6 +15,8 @@
  */
 package io.reshapr.proxy.registry;
 
+import org.infinispan.protostream.annotations.ProtoField;
+
 /**
  * Represents a third-party OAuth2 configuration entry in the registry.
  * @param clientId The OAuth2 client ID
@@ -24,8 +26,8 @@ package io.reshapr.proxy.registry;
  * @author laurent
  */
 public record OAuth2ClientConfigurationEntry(
-      String clientId,
-      String clientSecret,
-      String authorizationEndpoint,
-      String tokenEndpoint) {
+      @ProtoField(1) String clientId,
+      @ProtoField(2) String clientSecret,
+      @ProtoField(3) String authorizationEndpoint,
+      @ProtoField(4) String tokenEndpoint) {
 }
