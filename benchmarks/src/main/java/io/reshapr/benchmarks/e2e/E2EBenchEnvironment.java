@@ -19,25 +19,12 @@ import io.reshapr.benchmarks.openapi.OpenAPISpecGenerator;
 import io.reshapr.benchmarks.proxy.ProxyBenchPayloads;
 import io.reshapr.discovery.exposition.v1.Artifact;
 import io.reshapr.discovery.exposition.v1.ArtifactType;
-import io.reshapr.discovery.exposition.v1.ArtifactsRequest;
-import io.reshapr.discovery.exposition.v1.ArtifactsResponse;
 import io.reshapr.discovery.exposition.v1.Configuration;
 import io.reshapr.discovery.exposition.v1.Exposition;
-import io.reshapr.discovery.exposition.v1.ExpositionChangeEvent;
-import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryRequest;
-import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryResponse;
-import io.reshapr.discovery.exposition.v1.ExpositionDiscoveryServiceGrpc;
-import io.reshapr.discovery.exposition.v1.ExpositionFetchRequest;
 import io.reshapr.discovery.exposition.v1.Operation;
 import io.reshapr.discovery.exposition.v1.Service;
-import io.reshapr.health.gateway.v1.GatewayHealthResponse;
-import io.reshapr.health.gateway.v1.GatewayHealthServiceGrpc;
-import io.reshapr.health.gateway.v1.GatewayRequest;
 
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -81,9 +68,6 @@ import java.util.Map;
  * @author laurent
  */
 public final class E2EBenchEnvironment {
-
-   /** Organization used by every benchmarked exposition. */
-   public static final String ORGANIZATION_ID = "reshapr";
 
    private E2EBenchEnvironment() {
    }
@@ -137,7 +121,7 @@ public final class E2EBenchEnvironment {
       for (BenchExposition bench : benchExpositions) {
          Service service = Service.newBuilder()
                .setId(bench.serviceId())
-               .setOrganizationId(ORGANIZATION_ID)
+               .setOrganizationId(E2EStubControlPlane.ORGANIZATION_ID)
                .setName("Bench REST API " + bench.suffix())
                .setVersion("1.0.0")
                .setType("REST")
@@ -171,13 +155,9 @@ public final class E2EBenchEnvironment {
                .build());
       }
 
-      Server grpcServer = ServerBuilder.forPort(grpcPort)
-            .addService(new StubExpositionDiscoveryService(expositionsById, artifactsByServiceId))
-            .addService(new StubGatewayHealthService())
-            .build()
-            .start();
-      System.out.printf("Stub control-plane (EDS + GHS) listening on port %d with %d expositions: %s (audit %s)%n",
-            grpcPort, expositionsById.size(), expositionsById.keySet(), auditEnabled ? "ENABLED" : "disabled");
+      Server grpcServer = E2EStubControlPlane.start(grpcPort, expositionsById, artifactsByServiceId);
+      System.out.printf("REST benchmark expositions ready (audit %s)%n",
+            auditEnabled ? "ENABLED" : "disabled");
 
       Runtime.getRuntime().addShutdownHook(new Thread(() -> {
          grpcServer.shutdownNow();
@@ -192,88 +172,5 @@ public final class E2EBenchEnvironment {
 
       System.out.println("E2E-ENV READY");
       grpcServer.awaitTermination();
-   }
-
-   /** Stub EDS: serves the static benchmarked expositions; the change stream stays open and silent. */
-   private static final class StubExpositionDiscoveryService
-         extends ExpositionDiscoveryServiceGrpc.ExpositionDiscoveryServiceImplBase {
-
-      private final Map<String, Exposition> expositionsById;
-      private final Map<String, Artifact> artifactsByServiceId;
-
-      private StubExpositionDiscoveryService(Map<String, Exposition> expositionsById,
-                                             Map<String, Artifact> artifactsByServiceId) {
-         this.expositionsById = expositionsById;
-         this.artifactsByServiceId = artifactsByServiceId;
-      }
-
-      @Override
-      public void discoverExpositions(ExpositionDiscoveryRequest request,
-                                      StreamObserver<ExpositionDiscoveryResponse> responseObserver) {
-         System.out.printf("Gateway '%s' (version %s) discovered %d expositions%n",
-               request.getGatewayId(), request.getVersion(), expositionsById.size());
-         responseObserver.onNext(ExpositionDiscoveryResponse.newBuilder()
-               .addAllExpositions(expositionsById.values())
-               .build());
-         responseObserver.onCompleted();
-      }
-
-      @Override
-      public void streamExpositionChanges(ExpositionDiscoveryRequest request,
-                                          StreamObserver<ExpositionChangeEvent> responseObserver) {
-         // Static topology: keep the stream open without emitting anything so the proxy does not
-         // enter its retry loop during the measurement.
-      }
-
-      @Override
-      public void fetchExposition(ExpositionFetchRequest request,
-                                  StreamObserver<Exposition> responseObserver) {
-         Exposition exposition = expositionsById.get(request.getExpositionId());
-         if (exposition == null) {
-            responseObserver.onError(Status.NOT_FOUND
-                  .withDescription("Unknown exposition: " + request.getExpositionId())
-                  .asRuntimeException());
-            return;
-         }
-         responseObserver.onNext(exposition);
-         responseObserver.onCompleted();
-      }
-
-      @Override
-      public void fetchArtifacts(ArtifactsRequest request,
-                                 StreamObserver<ArtifactsResponse> responseObserver) {
-         Artifact artifact = artifactsByServiceId.get(request.getServiceId());
-         if (artifact == null) {
-            responseObserver.onError(Status.NOT_FOUND
-                  .withDescription("Unknown service: " + request.getServiceId())
-                  .asRuntimeException());
-            return;
-         }
-         responseObserver.onNext(ArtifactsResponse.newBuilder()
-               .setServiceId(request.getServiceId())
-               .addArtifacts(artifact)
-               .build());
-         responseObserver.onCompleted();
-      }
-   }
-
-   /** Stub GHS: acknowledges every health advertisement. */
-   private static final class StubGatewayHealthService
-         extends GatewayHealthServiceGrpc.GatewayHealthServiceImplBase {
-
-      private static final GatewayHealthResponse ACK =
-            GatewayHealthResponse.newBuilder().setAcknowledged(true).build();
-
-      @Override
-      public void advertHealthy(GatewayRequest request, StreamObserver<GatewayHealthResponse> responseObserver) {
-         responseObserver.onNext(ACK);
-         responseObserver.onCompleted();
-      }
-
-      @Override
-      public void advertShutdown(GatewayRequest request, StreamObserver<GatewayHealthResponse> responseObserver) {
-         responseObserver.onNext(ACK);
-         responseObserver.onCompleted();
-      }
    }
 }
